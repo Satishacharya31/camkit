@@ -6,8 +6,6 @@ build/
 .env.*.local
 *.log
 .DS_Store
-
 data/
 .env
-
 /generated/prisma
