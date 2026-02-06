@@ -11,12 +11,40 @@ function createSlug(text: string): string {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // GET - Public, return all published content
+  // GET - Public, return all published content with optional search
   if (req.method === 'GET') {
     try {
+      const { search, subject, category, sortBy = 'createdAt', order = 'desc' } = req.query;
+
+      // Build where clause
+      const where: any = { isPublished: true };
+
+      // Search filter - searches in title and subject
+      if (search && typeof search === 'string') {
+        where.OR = [
+          { title: { contains: search, mode: 'insensitive' } },
+          { subject: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      // Subject filter (legacy)
+      if (subject && typeof subject === 'string') {
+        where.subject = subject;
+      }
+
+      // Category filter (new)
+      if (category && typeof category === 'string') {
+        where.category = { slug: category };
+      }
+
+      // Validate sort field
+      const validSortFields = ['createdAt', 'views', 'title'];
+      const sortField = validSortFields.includes(sortBy as string) ? sortBy : 'createdAt';
+      const sortOrder = order === 'asc' ? 'asc' : 'desc';
+
       const contents = await prisma.content.findMany({
-        where: { isPublished: true },
-        orderBy: { createdAt: 'desc' },
+        where,
+        orderBy: { [sortField as string]: sortOrder },
         select: {
           id: true,
           title: true,
@@ -30,6 +58,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           isPublished: true,
           createdAt: true,
           updatedAt: true,
+          type: true,
+          thumbnail: true,
+          category: {
+            select: {
+              name: true,
+              slug: true,
+              color: true
+            }
+          }
         }
       })
       return res.status(200).json(contents)
@@ -63,6 +100,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           htmlCode: htmlCode || '',
           cssCode: cssCode || '',
           jsCode: jsCode || '',
+          type: req.body.type || 'CODE',
+          fileUrl: req.body.fileUrl || null,
+          thumbnail: req.body.thumbnail || null,
           isPublished: isPublished ?? false,
           userId: session.user.id,
         }

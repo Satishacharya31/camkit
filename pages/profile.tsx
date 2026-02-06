@@ -44,12 +44,17 @@ interface Analytics {
 const COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const router = useRouter();
   const [contents, setContents] = useState<Content[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'settings'>('overview');
+
+  // Settings form state
+  const [settingsName, setSettingsName] = useState('');
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -124,7 +129,7 @@ export default function ProfilePage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this content?')) return;
-    
+
     try {
       const res = await fetch(`/api/contents/${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -132,6 +137,48 @@ export default function ProfilePage() {
       }
     } catch (error) {
       console.error('Delete failed:', error);
+    }
+  };
+
+  // Initialize settings form when session loads
+  useEffect(() => {
+    if (session?.user?.name) {
+      setSettingsName(session.user.name);
+    }
+  }, [session?.user?.name]);
+
+  // Save settings handler
+  const handleSaveSettings = async () => {
+    if (!settingsName.trim()) {
+      setSettingsMessage({ type: 'error', text: 'Name is required' });
+      return;
+    }
+
+    setSavingSettings(true);
+    setSettingsMessage(null);
+
+    try {
+      const res = await fetch('/api/user/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: settingsName.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setSettingsMessage({ type: 'success', text: 'Settings saved successfully!' });
+        // Update the session to reflect changes
+        await updateSession({ name: settingsName.trim() });
+        setTimeout(() => setSettingsMessage(null), 3000);
+      } else {
+        setSettingsMessage({ type: 'error', text: data.error || 'Failed to save settings' });
+      }
+    } catch (error) {
+      console.error('Save settings failed:', error);
+      setSettingsMessage({ type: 'error', text: 'Failed to save settings' });
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -173,7 +220,7 @@ export default function ProfilePage() {
                   </svg>
                   New Project
                 </Link>
-                
+
                 <div className="flex items-center gap-3">
                   <img
                     src={session?.user?.image || `https://ui-avatars.com/api/?name=${session?.user?.name || 'U'}&background=7c3aed&color=fff`}
@@ -222,11 +269,10 @@ export default function ProfilePage() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                  activeTab === tab
-                    ? 'bg-violet-500 text-white'
-                    : 'bg-slate-800/50 text-gray-400 hover:text-white hover:bg-slate-700/50'
-                }`}
+                className={`px-6 py-3 rounded-xl font-medium transition-all ${activeTab === tab
+                  ? 'bg-violet-500 text-white'
+                  : 'bg-slate-800/50 text-gray-400 hover:text-white hover:bg-slate-700/50'
+                  }`}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
@@ -465,14 +511,26 @@ export default function ProfilePage() {
           {activeTab === 'settings' && (
             <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8">
               <h3 className="text-xl font-semibold text-white mb-6">Account Settings</h3>
+
+              {/* Success/Error Message */}
+              {settingsMessage && (
+                <div className={`mb-6 px-4 py-3 rounded-lg ${settingsMessage.type === 'success'
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                    : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                  }`}>
+                  {settingsMessage.text}
+                </div>
+              )}
+
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Display Name</label>
                   <input
                     type="text"
-                    value={session?.user?.name || ''}
-                    disabled
-                    className="w-full max-w-md bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white disabled:opacity-50"
+                    value={settingsName}
+                    onChange={(e) => setSettingsName(e.target.value)}
+                    placeholder="Your display name"
+                    className="w-full max-w-md bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -481,12 +539,38 @@ export default function ProfilePage() {
                     type="email"
                     value={session?.user?.email || ''}
                     disabled
-                    className="w-full max-w-md bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white disabled:opacity-50"
+                    className="w-full max-w-md bg-slate-900/50 border border-slate-600 rounded-xl px-4 py-3 text-white disabled:opacity-50 cursor-not-allowed"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
                 </div>
+
+                {/* Save Button */}
+                <div className="pt-4">
+                  <button
+                    onClick={handleSaveSettings}
+                    disabled={savingSettings || settingsName === session?.user?.name}
+                    className="px-6 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {savingSettings ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
+                  </button>
+                </div>
+
                 <div className="pt-6 border-t border-slate-700">
                   <h4 className="text-lg font-medium text-white mb-4">Danger Zone</h4>
-                  <button className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 rounded-lg transition-colors">
+                  <button
+                    onClick={() => alert('Account deletion requires contacting an administrator')}
+                    className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 rounded-lg transition-colors"
+                  >
                     Delete Account
                   </button>
                 </div>

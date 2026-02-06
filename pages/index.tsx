@@ -2,29 +2,21 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Head from 'next/head'
 import { useSession } from 'next-auth/react'
+import ContentCard from '@/components/ContentCard'
+import Navbar from '@/components/Navbar'
 
 interface Content {
   id: string
   title: string
   subject: string
-  htmlCode: string
-  cssCode: string
-  jsCode: string
-  createdAt: string
-  slug: string
   subjectSlug: string
-}
-
-const subjectColors: Record<string, { bg: string; text: string; border: string }> = {
-  'Physics': { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/30' },
-  'Chemistry': { bg: 'bg-teal-500/10', text: 'text-teal-400', border: 'border-teal-500/30' },
-  'Biology': { bg: 'bg-green-500/10', text: 'text-green-400', border: 'border-green-500/30' },
-  'Computer Science': { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/30' },
-  'Mathematics': { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/30' },
-}
-
-const getSubjectColor = (subject: string) => {
-  return subjectColors[subject] || { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/30' }
+  slug: string
+  htmlCode?: string;
+  cssCode?: string;
+  jsCode?: string;
+  type?: 'CODE' | 'PDF' | 'DOCUMENT' | 'IMAGE';
+  thumbnail?: string;
+  createdAt: string;
 }
 
 export default function Home() {
@@ -33,15 +25,45 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [selectedSubject, setSelectedSubject] = useState<string>('All')
   const [searchQuery, setSearchQuery] = useState('')
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [categories, setCategories] = useState<{ id: string; name: string; slug: string; color: string }[]>([])
 
   useEffect(() => {
-    fetchContents()
+    fetchCategories()
   }, [])
 
-  const fetchContents = async () => {
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      fetchContents()
+    }, 500)
+
+    return () => clearTimeout(delayDebounceFn)
+  }, [searchQuery, selectedSubject])
+
+  const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/contents')
+      const res = await fetch('/api/categories')
+      const data = await res.json()
+      setCategories(data)
+    } catch (error) {
+      console.error('Failed to fetch categories:', error)
+    }
+  }
+
+  const fetchContents = async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (searchQuery) params.append('search', searchQuery)
+      if (selectedSubject !== 'All') {
+        const category = categories.find(c => c.name === selectedSubject)
+        if (category) {
+          params.append('category', category.slug)
+        } else {
+          params.append('subject', selectedSubject)
+        }
+      }
+
+      const response = await fetch(`/api/contents?${params.toString()}`)
       const data = await response.json()
       setContents(data)
     } catch (error) {
@@ -51,322 +73,126 @@ export default function Home() {
     }
   }
 
-  const subjects: string[] = ['All', ...Array.from(new Set<string>(contents.map(c => c.subject)))]
-  const filteredContents = contents.filter(c => {
-    const matchesSubject = selectedSubject === 'All' || c.subject === selectedSubject
-    const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesSubject && matchesSearch
-  })
+  const subjects: string[] = ['All', ...categories.map(c => c.name)]
 
   return (
     <>
       <Head>
-        <title>LabCMS - Dashboard</title>
-        <meta name="description" content="Manage your lab reports and experiments" />
+        <title>CampusKit - Academic Material Search & Web Development Tools</title>
+        <meta name="description" content="Search academic materials, lab practicals, exam papers, and projects. Use our online HTML compiler and upload your own content for free." />
+        <meta name="google-site-verification" content="GPcAMvoJqIiDxD5OD-H1As13QpgXIFrcuy0sChrji6Y" />
+        <meta name="keywords" content="academic material, lab practicals, exam papers, html compiler, web development, student projects, campuskit" />
+
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://campuskit.vercel.app/" />
+        <meta property="og:title" content="CampusKit - Academic Material Search & Web Development Tools" />
+        <meta property="og:description" content="Search academic materials, lab practicals, exam papers, and projects. Use our online HTML compiler and upload your own content for free." />
+        <meta property="og:image" content="https://campuskit.vercel.app/og-image.jpg" />
+
+        {/* Twitter */}
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content="https://campuskit.vercel.app/" />
+        <meta property="twitter:title" content="CampusKit - Academic Material Search & Web Development Tools" />
+        <meta property="twitter:description" content="Search academic materials, lab practicals, exam papers, and projects. Use our online HTML compiler and upload your own content for free." />
+        <meta property="twitter:image" content="https://campuskit.vercel.app/og-image.jpg" />
       </Head>
 
-      <div className="min-h-screen bg-[#0a0a0f] text-white">
-        {/* Sidebar */}
-        <aside className="fixed left-0 top-0 h-screen w-56 bg-[#0f0f15] border-r border-white/5 flex flex-col z-50">
-          {/* Logo */}
-          <div className="h-12 flex items-center px-4 border-b border-white/5">
-            <div className="w-6 h-6 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mr-2">
-              <span className="text-xs font-bold">L</span>
-            </div>
-            <span className="font-semibold text-sm">LabCMS</span>
-          </div>
+      <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0f] text-gray-900 dark:text-white selection:bg-purple-500/30 transition-colors duration-300">
 
-          {/* Nav Links */}
-          <nav className="flex-1 p-2 space-y-0.5">
-            <Link href="/" className="flex items-center gap-2 px-3 py-2 rounded-md bg-white/5 text-white text-sm">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-              Dashboard
-            </Link>
-            <Link href="/upload" className="flex items-center gap-2 px-3 py-2 rounded-md text-gray-400 hover:text-white hover:bg-white/5 text-sm transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-              </svg>
-              New Report
-            </Link>
-            <Link href="/profile" className="flex items-center gap-2 px-3 py-2 rounded-md text-gray-400 hover:text-white hover:bg-white/5 text-sm transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              Profile
-            </Link>
-            {(session?.user as any)?.isAdmin && (
-              <Link href="/admin" className="flex items-center gap-2 px-3 py-2 rounded-md text-gray-400 hover:text-white hover:bg-white/5 text-sm transition-colors">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Admin
-              </Link>
-            )}
-          </nav>
+        {/* Background Gradients */}
+        <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[100px]" />
+          <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[100px]" />
+        </div>
 
-          {/* User */}
-          <div className="p-3 border-t border-white/5">
-            {session?.user ? (
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-medium">
-                  {session.user.name?.[0] || session.user.email?.[0] || 'U'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{session.user.name || 'User'}</p>
-                  <p className="text-[10px] text-gray-500 truncate">{session.user.email}</p>
-                </div>
-              </div>
-            ) : (
-              <Link href="/login" className="flex items-center gap-2 text-sm text-gray-400 hover:text-white">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                </svg>
-                Sign In
-              </Link>
-            )}
-          </div>
-        </aside>
+        {/* Navbar with Search */}
+        <Navbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
 
         {/* Main Content */}
-        <main className="ml-56">
-          {/* Header */}
-          <header className="sticky top-0 z-40 h-12 bg-[#0a0a0f]/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-4">
-            <div className="flex items-center gap-3">
-              <h1 className="text-sm font-medium">All Reports</h1>
-              <span className="text-xs text-gray-500">({filteredContents.length})</span>
+        <main className="relative z-10 pt-24 pb-12 px-6 lg:px-12 max-w-7xl mx-auto">
+
+          {/* Hero / Header */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                {session?.user ? `Welcome back, ${session.user.name?.split(' ')[0]}` : 'Discover Resources'}
+              </h1>
+              <p className="text-gray-500 dark:text-gray-400">
+                Explore and manage your assignments, lab practicals, projects, and exam papers.
+              </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              {/* Search */}
-              <div className="flex items-center bg-white/5 border border-white/10 rounded-md px-2 py-1 w-52">
-                <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent border-none text-xs text-white placeholder-gray-500 w-full ml-2 focus:outline-none"
-                />
-              </div>
-
-              {/* View Toggle */}
-              <div className="flex items-center bg-white/5 border border-white/10 rounded-md p-0.5">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-1 rounded ${viewMode === 'grid' ? 'bg-white/10 text-white' : 'text-gray-500'}`}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-1 rounded ${viewMode === 'list' ? 'bg-white/10 text-white' : 'text-gray-500'}`}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* New Button */}
-              <Link href="/upload" className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded-md transition-colors">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-3">
+              <Link href="/upload" className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-lg shadow-lg shadow-purple-500/20 transition-all transform hover:-translate-y-0.5 font-medium text-sm">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                New
+                New Project
               </Link>
             </div>
-          </header>
+          </div>
 
           {/* Filters */}
-          <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2 overflow-x-auto">
-            {subjects.map((subject) => {
-              const colors = getSubjectColor(subject)
-              return (
-                <button
-                  key={subject}
-                  onClick={() => setSelectedSubject(subject)}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${selectedSubject === subject
-                    ? 'bg-white/10 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                    }`}
-                >
-                  {subject}
-                </button>
-              )
-            })}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide max-w-full md:max-w-md">
+            {subjects.map((subject) => (
+              <button
+                key={subject}
+                onClick={() => setSelectedSubject(subject)}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-300 border ${selectedSubject === subject
+                  ? 'bg-blue-600 dark:bg-white text-white dark:text-black border-blue-600 dark:border-white shadow-lg shadow-blue-500/20 dark:shadow-white/10'
+                  : 'bg-white dark:bg-white/5 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/10 hover:text-blue-600 dark:hover:text-white hover:border-blue-200 dark:hover:border-white/10'
+                  }`}
+              >
+                {subject}
+              </button>
+            ))}
           </div>
 
-          {/* Hero Section */}
-          <div className="px-4 py-6 border-b border-white/5">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-white mb-1">
-                  {session?.user?.name ? `Welcome back, ${session.user.name.split(' ')[0]}` : 'Welcome to LabCMS'}
-                </h2>
-                <p className="text-sm text-gray-400">
-                  {contents.length > 0
-                    ? `You have ${contents.length} report${contents.length !== 1 ? 's' : ''} in your workspace`
-                    : 'Create and manage your lab reports in one place'}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-white">{contents.length}</p>
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Reports</p>
+          {/* Grid Layout */}
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <div key={i} className="h-[280px] bg-white dark:bg-white/5 rounded-2xl animate-pulse border border-gray-200 dark:border-white/5">
+                  <div className="h-40 bg-gray-100 dark:bg-white/5 rounded-t-2xl" />
+                  <div className="p-4 space-y-3">
+                    <div className="h-4 w-3/4 bg-gray-100 dark:bg-white/10 rounded" />
+                    <div className="h-3 w-1/2 bg-gray-100 dark:bg-white/10 rounded" />
+                  </div>
                 </div>
-                <div className="w-px h-8 bg-white/10" />
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-white">{subjects.length - 1}</p>
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Subjects</p>
-                </div>
-              </div>
+              ))}
             </div>
-          </div>
-
-          {/* Content */}
-          <div className="p-4">
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+          ) : contents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-white/5 rounded-3xl border border-gray-200 dark:border-white/5 border-dashed">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center mb-6">
+                <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
               </div>
-            ) : filteredContents.length === 0 ? (
-              <div className="py-16">
-                {/* Empty State */}
-                <div className="max-w-md mx-auto text-center">
-                  {/* Illustration */}
-                  <div className="relative mb-6">
-                    <div className="w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
-                      <svg className="w-12 h-12 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
-                    <div className="absolute -top-2 -right-2 w-8 h-8 rounded-lg bg-green-500/20 border border-green-500/30 flex items-center justify-center">
-                      <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </div>
-                  </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No projects found</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-center max-w-sm mb-6">
+                We couldn't find any projects matching your criteria. Try adjusting your search or filters.
+              </p>
+              {searchQuery && (
+                <button
+                  onClick={() => { setSearchQuery(''); setSelectedSubject('All'); }}
+                  className="text-blue-500 hover:text-blue-600 font-medium"
+                >
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {contents.map((content) => (
+                <ContentCard
+                  key={content.id}
+                  {...content}
+                />
+              ))}
+            </div>
+          )}
 
-                  <h3 className="text-lg font-semibold text-white mb-2">
-                    {searchQuery ? 'No matching reports' : 'No reports yet'}
-                  </h3>
-                  <p className="text-sm text-gray-400 mb-6">
-                    {searchQuery
-                      ? `No reports found for "${searchQuery}". Try a different search term.`
-                      : 'Get started by creating your first lab report. It only takes a minute.'}
-                  </p>
-
-                  {/* Action Cards */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <Link
-                      href="/upload"
-                      className="p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-left group"
-                    >
-                      <div className="w-8 h-8 rounded-md bg-white/20 flex items-center justify-center mb-3">
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                      </div>
-                      <h4 className="text-sm font-medium text-white mb-0.5">Create New</h4>
-                      <p className="text-xs text-blue-200">Start from scratch</p>
-                    </Link>
-
-                    <div className="p-4 bg-white/5 border border-white/10 rounded-lg text-left">
-                      <div className="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center mb-3">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                        </svg>
-                      </div>
-                      <h4 className="text-sm font-medium text-white mb-0.5">Import</h4>
-                      <p className="text-xs text-gray-500">Coming soon</p>
-                    </div>
-                  </div>
-
-                  {/* Quick Tips */}
-                  <div className="mt-8 pt-6 border-t border-white/5">
-                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-3">Quick Tips</p>
-                    <div className="space-y-2 text-left">
-                      <div className="flex items-start gap-2 text-xs text-gray-400">
-                        <span className="text-blue-400 mt-0.5">•</span>
-                        <span>Write HTML, CSS, and JavaScript in the editor</span>
-                      </div>
-                      <div className="flex items-start gap-2 text-xs text-gray-400">
-                        <span className="text-blue-400 mt-0.5">•</span>
-                        <span>Preview your report in real-time</span>
-                      </div>
-                      <div className="flex items-start gap-2 text-xs text-gray-400">
-                        <span className="text-blue-400 mt-0.5">•</span>
-                        <span>Publish when ready to share</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : viewMode === 'grid' ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-                {filteredContents.map((content) => {
-                  const colors = getSubjectColor(content.subject)
-                  return (
-                    <Link
-                      key={content.id}
-                      href={`/${content.subjectSlug}/${content.slug}`}
-                      className="group bg-[#12121a] border border-white/5 rounded-lg overflow-hidden hover:border-white/10 transition-colors"
-                    >
-                      <div className="aspect-video bg-gradient-to-br from-white/5 to-transparent flex items-center justify-center">
-                        <div className={`w-8 h-8 rounded-md ${colors.bg} ${colors.border} border flex items-center justify-center`}>
-                          <span className={`text-xs font-bold ${colors.text}`}>{content.subject[0]}</span>
-                        </div>
-                      </div>
-                      <div className="p-2.5">
-                        <h3 className="text-xs font-medium text-white truncate group-hover:text-blue-400 transition-colors">
-                          {content.title}
-                        </h3>
-                        <div className="flex items-center justify-between mt-1.5">
-                          <span className={`text-[10px] ${colors.text}`}>{content.subject}</span>
-                          <span className="text-[10px] text-gray-500">
-                            {new Date(content.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {filteredContents.map((content) => {
-                  const colors = getSubjectColor(content.subject)
-                  return (
-                    <Link
-                      key={content.id}
-                      href={`/${content.subjectSlug}/${content.slug}`}
-                      className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-white/5 transition-colors group"
-                    >
-                      <div className={`w-6 h-6 rounded ${colors.bg} ${colors.border} border flex items-center justify-center flex-shrink-0`}>
-                        <span className={`text-[10px] font-bold ${colors.text}`}>{content.subject[0]}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-xs font-medium text-white truncate group-hover:text-blue-400 transition-colors">
-                          {content.title}
-                        </h3>
-                      </div>
-                      <span className={`text-[10px] ${colors.text} px-2 py-0.5 rounded ${colors.bg}`}>{content.subject}</span>
-                      <span className="text-[10px] text-gray-500 w-16 text-right">
-                        {new Date(content.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
-          </div>
         </main>
       </div>
     </>

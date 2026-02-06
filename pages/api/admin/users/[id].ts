@@ -17,17 +17,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { id } = req.query;
 
   if (!id || typeof id !== 'string') {
-    return res.status(400).json({ error: 'Invalid ID' });
+    return res.status(400).json({ error: 'User ID is required' });
   }
 
-  // GET - Fetch single user with their content
+  // GET - Get single user details
   if (req.method === 'GET') {
     try {
       const user = await prisma.user.findUnique({
         where: { id },
-        include: {
-          contents: {
-            orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          role: true,
+          createdAt: true,
+          _count: {
+            select: { contents: true },
           },
         },
       });
@@ -36,47 +42,71 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(404).json({ error: 'User not found' });
       }
 
-      return res.status(200).json(user);
+      return res.status(200).json({ user });
     } catch (error) {
       console.error('Failed to fetch user:', error);
       return res.status(500).json({ error: 'Failed to fetch user' });
     }
   }
 
-  // PUT - Update user role
+  // PUT - Update user (role, name)
   if (req.method === 'PUT') {
     try {
-      const { role } = req.body;
+      const { role, name } = req.body;
 
-      if (!['USER', 'ADMIN'].includes(role)) {
-        return res.status(400).json({ error: 'Invalid role' });
+      // Prevent admin from demoting themselves
+      if (id === session.user.id && role === 'USER') {
+        return res.status(400).json({ error: 'You cannot demote yourself' });
       }
 
-      const user = await prisma.user.update({
+      const updateData: { role?: 'USER' | 'ADMIN'; name?: string } = {};
+
+      if (role && ['USER', 'ADMIN'].includes(role)) {
+        updateData.role = role;
+      }
+
+      if (name !== undefined) {
+        updateData.name = name;
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+      }
+
+      const updatedUser = await prisma.user.update({
         where: { id },
-        data: { role },
+        data: updateData,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          image: true,
+          createdAt: true,
+        },
       });
 
-      return res.status(200).json(user);
+      return res.status(200).json({ user: updatedUser, message: 'User updated successfully' });
     } catch (error) {
       console.error('Failed to update user:', error);
       return res.status(500).json({ error: 'Failed to update user' });
     }
   }
 
-  // DELETE - Delete user and their content
+  // DELETE - Delete user
   if (req.method === 'DELETE') {
     try {
-      // Prevent deleting yourself
+      // Prevent admin from deleting themselves
       if (id === session.user.id) {
-        return res.status(400).json({ error: 'Cannot delete yourself' });
+        return res.status(400).json({ error: 'You cannot delete your own account' });
       }
 
+      // Delete user (cascades to contents, sessions, accounts via Prisma schema)
       await prisma.user.delete({
         where: { id },
       });
 
-      return res.status(200).json({ message: 'User deleted' });
+      return res.status(200).json({ message: 'User deleted successfully' });
     } catch (error) {
       console.error('Failed to delete user:', error);
       return res.status(500).json({ error: 'Failed to delete user' });

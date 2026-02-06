@@ -73,6 +73,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   contents      Content[]
+  assets        Asset[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -85,27 +86,86 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// Content model
+// Content model - now supports multiple types
 model Content {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   title       String
   slug        String
   subject     String
   subjectSlug String
-  htmlCode    String   @db.Text
-  cssCode     String?  @db.Text
-  jsCode      String?  @db.Text
-  views       Int      @default(0)
-  isPublished Boolean  @default(true)
+  categoryId  String?
+  category    Category?   @relation(fields: [categoryId], references: [id])
+  type        ContentType @default(CODE)
+  
+  // For CODE type - HTML/CSS/JS content
+  htmlCode    String?     @db.Text
+  cssCode     String?     @db.Text
+  jsCode      String?     @db.Text
+  
+  // For PDF/DOCUMENT type - Azure Blob URL
+  fileUrl     String?
+  fileName    String?
+  fileSize    Int?
+  mimeType    String?
+  
+  // Common fields
+  description String?     @db.Text
+  thumbnail   String?     // Azure Blob URL for thumbnail
+  views       Int         @default(0)
+  isPublished Boolean     @default(true)
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   @@unique([subjectSlug, slug])
+  @@index([userId, isPublished])
+  @@index([subject])
+  @@index([categoryId])
+}
+
+// Asset model - for images, icons, and other resources used in content
+model Asset {
+  id          String    @id @default(cuid())
+  name        String    // Original filename
+  slug        String    // URL-safe name
+  url         String    // Azure Blob URL
+  thumbnailUrl String?  // Thumbnail for images
+  mimeType    String
+  size        Int       // Size in bytes
+  width       Int?      // For images
+  height      Int?      // For images
+  folder      String    @default("general") // Folder/category name
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, folder])
+  @@index([userId, createdAt])
+}
+
+// Category model - dynamic categories for content
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?   @db.Text
+  color       String?   // Hex color code or Tailwind class
+  icon        String?   // Icon name
+  contents    Content[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 enum Role {
   USER
   ADMIN
+}
+
+enum ContentType {
+  CODE      // HTML/CSS/JS projects
+  PDF       // PDF documents
+  DOCUMENT  // Word docs, spreadsheets, etc.
+  IMAGE     // Standalone images
 }

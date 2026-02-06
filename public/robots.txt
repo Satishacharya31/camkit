@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://campuskit.vercel.app/sitemap.xml
