@@ -193,14 +193,41 @@ export default function Home() {
                   key={subject}
                   onClick={() => setSelectedSubject(subject)}
                   className={`px-3 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${selectedSubject === subject
-                      ? 'bg-white/10 text-white'
-                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    ? 'bg-white/10 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
                     }`}
                 >
                   {subject}
                 </button>
               )
             })}
+          </div>
+
+          {/* Hero Section */}
+          <div className="px-4 py-6 border-b border-white/5">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-white mb-1">
+                  {session?.user?.name ? `Welcome back, ${session.user.name.split(' ')[0]}` : 'Welcome to LabCMS'}
+                </h2>
+                <p className="text-sm text-gray-400">
+                  {contents.length > 0
+                    ? `You have ${contents.length} report${contents.length !== 1 ? 's' : ''} in your workspace`
+                    : 'Create and manage your lab reports in one place'}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-white">{contents.length}</p>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Reports</p>
+                </div>
+                <div className="w-px h-8 bg-white/10" />
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-white">{subjects.length - 1}</p>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Subjects</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Content */}
@@ -210,20 +237,77 @@ export default function Home() {
                 <div className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
               </div>
             ) : filteredContents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3">
-                  <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
+              <div className="py-16">
+                {/* Empty State */}
+                <div className="max-w-md mx-auto text-center">
+                  {/* Illustration */}
+                  <div className="relative mb-6">
+                    <div className="w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
+                      <svg className="w-12 h-12 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div className="absolute -top-2 -right-2 w-8 h-8 rounded-lg bg-green-500/20 border border-green-500/30 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  <h3 className="text-lg font-semibold text-white mb-2">
+                    {searchQuery ? 'No matching reports' : 'No reports yet'}
+                  </h3>
+                  <p className="text-sm text-gray-400 mb-6">
+                    {searchQuery
+                      ? `No reports found for "${searchQuery}". Try a different search term.`
+                      : 'Get started by creating your first lab report. It only takes a minute.'}
+                  </p>
+
+                  {/* Action Cards */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <Link
+                      href="/upload"
+                      className="p-4 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-left group"
+                    >
+                      <div className="w-8 h-8 rounded-md bg-white/20 flex items-center justify-center mb-3">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </div>
+                      <h4 className="text-sm font-medium text-white mb-0.5">Create New</h4>
+                      <p className="text-xs text-blue-200">Start from scratch</p>
+                    </Link>
+
+                    <div className="p-4 bg-white/5 border border-white/10 rounded-lg text-left">
+                      <div className="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center mb-3">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                      </div>
+                      <h4 className="text-sm font-medium text-white mb-0.5">Import</h4>
+                      <p className="text-xs text-gray-500">Coming soon</p>
+                    </div>
+                  </div>
+
+                  {/* Quick Tips */}
+                  <div className="mt-8 pt-6 border-t border-white/5">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-3">Quick Tips</p>
+                    <div className="space-y-2 text-left">
+                      <div className="flex items-start gap-2 text-xs text-gray-400">
+                        <span className="text-blue-400 mt-0.5">•</span>
+                        <span>Write HTML, CSS, and JavaScript in the editor</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-xs text-gray-400">
+                        <span className="text-blue-400 mt-0.5">•</span>
+                        <span>Preview your report in real-time</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-xs text-gray-400">
+                        <span className="text-blue-400 mt-0.5">•</span>
+                        <span>Publish when ready to share</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-400 mb-1">No reports found</p>
-                <p className="text-xs text-gray-500 mb-4">Create your first report to get started</p>
-                <Link href="/upload" className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded-md transition-colors">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  New Report
-                </Link>
               </div>
             ) : viewMode === 'grid' ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
