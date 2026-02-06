@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Head from 'next/head'
+import { useSession } from 'next-auth/react'
 
 interface Content {
   id: string
@@ -14,33 +15,25 @@ interface Content {
   subjectSlug: string
 }
 
-// Subject colors mapping
-const subjectColors: Record<string, { bg: string; text: string; dot: string }> = {
-  'Physics': { bg: 'bg-purple-500/10', text: 'text-purple-300', dot: 'bg-purple-500' },
-  'Chemistry': { bg: 'bg-teal-500/10', text: 'text-teal-300', dot: 'bg-teal-500' },
-  'Biology': { bg: 'bg-green-500/10', text: 'text-green-300', dot: 'bg-green-500' },
-  'Computer Science': { bg: 'bg-orange-500/10', text: 'text-orange-300', dot: 'bg-orange-500' },
-  'Mathematics': { bg: 'bg-blue-500/10', text: 'text-blue-300', dot: 'bg-blue-500' },
+const subjectColors: Record<string, { bg: string; text: string; border: string }> = {
+  'Physics': { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/30' },
+  'Chemistry': { bg: 'bg-teal-500/10', text: 'text-teal-400', border: 'border-teal-500/30' },
+  'Biology': { bg: 'bg-green-500/10', text: 'text-green-400', border: 'border-green-500/30' },
+  'Computer Science': { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/30' },
+  'Mathematics': { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/30' },
 }
 
 const getSubjectColor = (subject: string) => {
-  return subjectColors[subject] || { bg: 'bg-slate-500/10', text: 'text-slate-300', dot: 'bg-slate-500' }
-}
-
-// Icons for subjects
-const subjectIcons: Record<string, string> = {
-  'Physics': '🚀',
-  'Chemistry': '🧪',
-  'Biology': '🌿',
-  'Computer Science': '💻',
-  'Mathematics': '📐',
+  return subjectColors[subject] || { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/30' }
 }
 
 export default function Home() {
+  const { data: session } = useSession()
   const [contents, setContents] = useState<Content[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedSubject, setSelectedSubject] = useState<string>('All')
   const [searchQuery, setSearchQuery] = useState('')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   useEffect(() => {
     fetchContents()
@@ -68,221 +61,229 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>LabCMS - Interactive Lab Reports</title>
-        <meta name="description" content="Access your experiments, analyze data, and track your academic progress" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+        <title>LabCMS - Dashboard</title>
+        <meta name="description" content="Manage your lab reports and experiments" />
       </Head>
 
-      <div className="dark bg-background-dark text-white font-display antialiased min-h-screen relative overflow-x-hidden selection:bg-primary selection:text-white">
-        {/* Background decorative elements */}
-        <div className="fixed inset-0 z-0 bg-glow pointer-events-none"></div>
-        <div className="fixed top-20 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] pointer-events-none"></div>
-        <div className="fixed bottom-0 left-0 w-[400px] h-[400px] bg-purple-500/5 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="min-h-screen bg-[#0a0a0f] text-white">
+        {/* Sidebar */}
+        <aside className="fixed left-0 top-0 h-screen w-56 bg-[#0f0f15] border-r border-white/5 flex flex-col z-50">
+          {/* Logo */}
+          <div className="h-12 flex items-center px-4 border-b border-white/5">
+            <div className="w-6 h-6 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mr-2">
+              <span className="text-xs font-bold">L</span>
+            </div>
+            <span className="font-semibold text-sm">LabCMS</span>
+          </div>
 
-        {/* Navigation */}
-        <div className="relative z-50 w-full px-4 pt-4 flex justify-center">
-          <nav className="w-full max-w-[1200px] glass-panel rounded-full px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-8">
-              <Link href="/" className="flex items-center gap-3 text-white group">
-                <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                  <span className="material-symbols-outlined">science</span>
-                </div>
-                <span className="text-xl font-bold tracking-tight">LabCMS</span>
+          {/* Nav Links */}
+          <nav className="flex-1 p-2 space-y-0.5">
+            <Link href="/" className="flex items-center gap-2 px-3 py-2 rounded-md bg-white/5 text-white text-sm">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+              Dashboard
+            </Link>
+            <Link href="/upload" className="flex items-center gap-2 px-3 py-2 rounded-md text-gray-400 hover:text-white hover:bg-white/5 text-sm transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+              </svg>
+              New Report
+            </Link>
+            <Link href="/profile" className="flex items-center gap-2 px-3 py-2 rounded-md text-gray-400 hover:text-white hover:bg-white/5 text-sm transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              Profile
+            </Link>
+            {(session?.user as any)?.isAdmin && (
+              <Link href="/admin" className="flex items-center gap-2 px-3 py-2 rounded-md text-gray-400 hover:text-white hover:bg-white/5 text-sm transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Admin
               </Link>
-              <div className="hidden md:flex items-center gap-1 pl-4">
-                <Link href="/" className="px-4 py-2 text-sm font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-full transition-all">My Reports</Link>
-                <Link href="/profile" className="px-4 py-2 text-sm font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-full transition-all">Profile</Link>
-                <Link href="/upload" className="px-4 py-2 text-sm font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-full transition-all">Upload</Link>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="hidden sm:flex items-center bg-[#101622]/50 border border-white/5 rounded-full px-3 py-1.5 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all w-64">
-                <span className="material-symbols-outlined text-slate-400 text-[20px]">search</span>
-                <input
-                  type="text"
-                  placeholder="Search reports..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent border-none focus:ring-0 text-sm text-white placeholder-slate-500 w-full h-full py-1 outline-none"
-                />
-              </div>
-              <button className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/80 transition-colors relative">
-                <span className="material-symbols-outlined">notifications</span>
-                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-[#1e2736]"></span>
-              </button>
-              <Link href="/admin/login" className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm cursor-pointer hover:scale-105 transition-transform">
-                A
-              </Link>
-            </div>
+            )}
           </nav>
-        </div>
+
+          {/* User */}
+          <div className="p-3 border-t border-white/5">
+            {session?.user ? (
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-medium">
+                  {session.user.name?.[0] || session.user.email?.[0] || 'U'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate">{session.user.name || 'User'}</p>
+                  <p className="text-[10px] text-gray-500 truncate">{session.user.email}</p>
+                </div>
+              </div>
+            ) : (
+              <Link href="/login" className="flex items-center gap-2 text-sm text-gray-400 hover:text-white">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                </svg>
+                Sign In
+              </Link>
+            )}
+          </div>
+        </aside>
 
         {/* Main Content */}
-        <main className="relative z-10 w-full max-w-[1200px] mx-auto px-6 pb-20 pt-12 flex flex-col gap-10">
-          {/* Hero Section */}
-          <div className="flex flex-col md:flex-row gap-8 items-end justify-between">
-            <div className="flex flex-col gap-4 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 w-fit">
-                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                <span className="text-xs font-semibold text-primary uppercase tracking-wider">Spring Semester 2026</span>
-              </div>
-              <h1 className="text-4xl md:text-6xl font-black text-white leading-[1.1] tracking-tight">
-                Interactive <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Lab Reports</span>
-              </h1>
-              <p className="text-lg text-slate-400 max-w-lg leading-relaxed">
-                Access your experiments, analyze real-time data, and track your academic progress all in one secure place.
-              </p>
+        <main className="ml-56">
+          {/* Header */}
+          <header className="sticky top-0 z-40 h-12 bg-[#0a0a0f]/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-4">
+            <div className="flex items-center gap-3">
+              <h1 className="text-sm font-medium">All Reports</h1>
+              <span className="text-xs text-gray-500">({filteredContents.length})</span>
             </div>
-            <div className="flex gap-4">
-              <button className="h-12 px-6 rounded-full bg-[#1e2736] hover:bg-[#252f40] text-white font-medium border border-white/5 transition-all flex items-center gap-2">
-                <span className="material-symbols-outlined">history</span>
-                <span>History</span>
-              </button>
-              <Link href="/upload" className="h-12 px-6 rounded-full bg-primary hover:bg-blue-600 text-white font-bold shadow-lg shadow-primary/25 transition-all flex items-center gap-2 transform hover:scale-105">
-                <span className="material-symbols-outlined">add</span>
-                <span>New Submission</span>
+
+            <div className="flex items-center gap-2">
+              {/* Search */}
+              <div className="flex items-center bg-white/5 border border-white/10 rounded-md px-2 py-1 w-52">
+                <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-transparent border-none text-xs text-white placeholder-gray-500 w-full ml-2 focus:outline-none"
+                />
+              </div>
+
+              {/* View Toggle */}
+              <div className="flex items-center bg-white/5 border border-white/10 rounded-md p-0.5">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-1 rounded ${viewMode === 'grid' ? 'bg-white/10 text-white' : 'text-gray-500'}`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-1 rounded ${viewMode === 'list' ? 'bg-white/10 text-white' : 'text-gray-500'}`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* New Button */}
+              <Link href="/upload" className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded-md transition-colors">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                New
               </Link>
             </div>
-          </div>
+          </header>
 
           {/* Filters */}
-          <div className="w-full overflow-x-auto pb-2 scrollbar-hide">
-            <div className="flex gap-3 min-w-max">
-              <button
-                onClick={() => setSelectedSubject('All')}
-                className={`px-6 h-10 rounded-full font-bold text-sm transition-all ${selectedSubject === 'All'
-                  ? 'bg-white text-background-dark shadow-lg shadow-white/10'
-                  : 'bg-[#1e2736] hover:bg-[#283245] border border-white/5 text-slate-300 hover:text-white font-medium'
-                  }`}
-              >
-                All Reports
-              </button>
-              {subjects.filter(s => s !== 'All').map((subject) => {
-                const colors = getSubjectColor(subject)
-                return (
-                  <button
-                    key={subject}
-                    onClick={() => setSelectedSubject(subject)}
-                    className={`px-6 h-10 rounded-full text-sm transition-all flex items-center gap-2 group ${selectedSubject === subject
-                      ? 'bg-white text-background-dark font-bold shadow-lg shadow-white/10'
-                      : 'bg-[#1e2736] hover:bg-[#283245] border border-white/5 text-slate-300 hover:text-white font-medium'
-                      }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full ${colors.dot} group-hover:shadow-[0_0_8px] transition-all`}></span>
-                    {subject}
-                  </button>
-                )
-              })}
-            </div>
+          <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2 overflow-x-auto">
+            {subjects.map((subject) => {
+              const colors = getSubjectColor(subject)
+              return (
+                <button
+                  key={subject}
+                  onClick={() => setSelectedSubject(subject)}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${selectedSubject === subject
+                      ? 'bg-white/10 text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    }`}
+                >
+                  {subject}
+                </button>
+              )
+            })}
           </div>
 
-          {/* Loading State */}
-          {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-                <p className="text-slate-400">Loading your reports...</p>
+          {/* Content */}
+          <div className="p-4">
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
               </div>
-            </div>
-          ) : filteredContents.length === 0 ? (
-            <div className="glass-card rounded-[2rem] p-12 flex flex-col items-center justify-center gap-4 text-center">
-              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="material-symbols-outlined text-4xl text-primary">folder_open</span>
+            ) : filteredContents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3">
+                  <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <p className="text-sm text-gray-400 mb-1">No reports found</p>
+                <p className="text-xs text-gray-500 mb-4">Create your first report to get started</p>
+                <Link href="/upload" className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded-md transition-colors">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  New Report
+                </Link>
               </div>
-              <h3 className="text-xl font-bold text-white">No Reports Found</h3>
-              <p className="text-slate-400 max-w-md">
-                {searchQuery ? `No results for "${searchQuery}"` : 'Start by creating your first lab report or try a different filter.'}
-              </p>
-              <Link href="/upload" className="mt-4 h-12 px-6 rounded-full bg-primary hover:bg-blue-600 text-white font-bold transition-all flex items-center gap-2">
-                <span className="material-symbols-outlined">add</span>
-                <span>Create New Report</span>
-              </Link>
-            </div>
-          ) : (
-            /* Grid Layout */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredContents.map((content) => {
-                const colors = getSubjectColor(content.subject)
-                const icon = subjectIcons[content.subject] || '📄'
-
-                return (
-                  <Link
-                    key={content.id}
-                    href={`/${content.subjectSlug}/${content.slug}`}
-                    className="glass-card rounded-[2rem] p-4 flex flex-col gap-4 group cursor-pointer relative overflow-hidden"
-                  >
-                    {/* Status Badge */}
-                    <div className="absolute top-0 right-0 p-4 z-10">
-                      <div className="bg-black/40 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-bold text-emerald-400 border border-emerald-500/20 shadow-lg">
-                        Published
-                      </div>
-                    </div>
-
-                    {/* Image/Preview Area */}
-                    <div className="w-full aspect-[4/3] rounded-[1.5rem] overflow-hidden relative bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-                      <span className="text-6xl opacity-50 group-hover:scale-110 transition-transform duration-500">{icon}</span>
-                      <div className="absolute inset-0 bg-gradient-to-t from-background-dark/80 to-transparent"></div>
-                      <div className="absolute bottom-3 left-3">
-                        <div className={`flex items-center gap-2 text-xs font-medium ${colors.text} ${colors.bg} px-2 py-1 rounded-lg border border-current/20 backdrop-blur-md`}>
-                          <span className="material-symbols-outlined text-[14px]">science</span>
-                          {content.subject}
+            ) : viewMode === 'grid' ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                {filteredContents.map((content) => {
+                  const colors = getSubjectColor(content.subject)
+                  return (
+                    <Link
+                      key={content.id}
+                      href={`/${content.subjectSlug}/${content.slug}`}
+                      className="group bg-[#12121a] border border-white/5 rounded-lg overflow-hidden hover:border-white/10 transition-colors"
+                    >
+                      <div className="aspect-video bg-gradient-to-br from-white/5 to-transparent flex items-center justify-center">
+                        <div className={`w-8 h-8 rounded-md ${colors.bg} ${colors.border} border flex items-center justify-center`}>
+                          <span className={`text-xs font-bold ${colors.text}`}>{content.subject[0]}</span>
                         </div>
                       </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex flex-col gap-1 px-1">
-                      <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors line-clamp-1">
-                        {content.title}
-                      </h3>
-                      <p className="text-sm text-slate-400 line-clamp-2">
-                        {content.htmlCode.replace(/<[^>]*>/g, '').substring(0, 80)}...
-                      </p>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="flex items-center justify-between mt-auto pt-2 px-1 border-t border-white/5">
-                      <span className="text-xs text-slate-500">
+                      <div className="p-2.5">
+                        <h3 className="text-xs font-medium text-white truncate group-hover:text-blue-400 transition-colors">
+                          {content.title}
+                        </h3>
+                        <div className="flex items-center justify-between mt-1.5">
+                          <span className={`text-[10px] ${colors.text}`}>{content.subject}</span>
+                          <span className="text-[10px] text-gray-500">
+                            {new Date(content.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {filteredContents.map((content) => {
+                  const colors = getSubjectColor(content.subject)
+                  return (
+                    <Link
+                      key={content.id}
+                      href={`/${content.subjectSlug}/${content.slug}`}
+                      className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-white/5 transition-colors group"
+                    >
+                      <div className={`w-6 h-6 rounded ${colors.bg} ${colors.border} border flex items-center justify-center flex-shrink-0`}>
+                        <span className={`text-[10px] font-bold ${colors.text}`}>{content.subject[0]}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-xs font-medium text-white truncate group-hover:text-blue-400 transition-colors">
+                          {content.title}
+                        </h3>
+                      </div>
+                      <span className={`text-[10px] ${colors.text} px-2 py-0.5 rounded ${colors.bg}`}>{content.subject}</span>
+                      <span className="text-[10px] text-gray-500 w-16 text-right">
                         {new Date(content.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </span>
-                      <span className="text-sm font-semibold text-primary flex items-center gap-1 group/btn">
-                        View Report
-                        <span className="material-symbols-outlined text-[16px] group-hover/btn:translate-x-1 transition-transform">arrow_forward</span>
-                      </span>
-                    </div>
-                  </Link>
-                )
-              })}
-
-              {/* Add New Card */}
-              <Link
-                href="/upload"
-                className="glass-card rounded-[2rem] p-4 flex flex-col items-center justify-center gap-4 group cursor-pointer relative overflow-hidden border-dashed border-2 border-white/10 hover:border-primary/50 min-h-[340px]"
-              >
-                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                  <span className="material-symbols-outlined text-4xl text-primary">add</span>
-                </div>
-                <div className="text-center px-4">
-                  <h3 className="text-lg font-bold text-white">Start New Report</h3>
-                  <p className="text-sm text-slate-500 mt-2">Choose a template or start from scratch.</p>
-                </div>
-              </Link>
-            </div>
-          )}
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </main>
-
-        {/* Floating Action Button */}
-        <div className="fixed bottom-8 right-8 z-50">
-          <Link
-            href="/upload"
-            className="w-16 h-16 rounded-full bg-primary hover:bg-blue-600 text-white shadow-2xl shadow-primary/40 flex items-center justify-center transition-all hover:scale-110 group"
-          >
-            <span className="material-symbols-outlined text-3xl group-hover:rotate-90 transition-transform duration-300">add</span>
-          </Link>
-        </div>
       </div>
     </>
   )

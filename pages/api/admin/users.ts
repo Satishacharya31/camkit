@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         orderBy: { createdAt: 'desc' },
       });
 
-      return res.status(200).json(users);
+      return res.status(200).json({ users });
     } catch (error) {
       console.error('Failed to fetch users:', error);
       return res.status(500).json({ error: 'Failed to fetch users' });

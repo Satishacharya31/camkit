@@ -20,7 +20,7 @@ export default function Login() {
       // Check if user is admin and redirect appropriately
       const user = session.user as any
       if (user.isAdmin) {
-        router.push('/admin/dashboard')
+        router.push('/admin')
       } else {
         router.push('/profile') // Regular user dashboard
       }
@@ -32,7 +32,7 @@ export default function Login() {
     setError('')
     try {
       await signIn('google', {
-        callbackUrl: '/admin/dashboard',
+        callbackUrl: '/admin',
       })
     } catch (err) {
       setError('Google sign-in failed. Please try again or use admin login below.')
@@ -50,14 +50,14 @@ export default function Login() {
       const result = await signIn('credentials', {
         email: adminEmail,
         password: adminPassword,
-        callbackUrl: '/admin/dashboard',
+        callbackUrl: '/admin',
         redirect: false,
       })
 
       if (result?.error) {
         setError('Invalid admin credentials')
       } else if (result?.ok) {
-        router.push('/admin/dashboard')
+        router.push('/admin')
       }
     } catch (err) {
       setError('Login failed. Please try again.')
@@ -149,7 +149,7 @@ export default function Login() {
                     'Continue with Google'
                   )}
                 </button>
-                
+
                 <div className="relative my-8">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-white/30"></div>
@@ -158,7 +158,7 @@ export default function Login() {
                     <span className="px-4 bg-white/10 text-blue-200 backdrop-blur-sm rounded-full">or</span>
                   </div>
                 </div>
-                
+
                 <button
                   onClick={() => setShowAdminForm(true)}
                   className="w-full text-blue-300 hover:text-white transition-colors text-sm font-medium py-2 px-4 rounded-lg hover:bg-white/10"
@@ -179,7 +179,7 @@ export default function Login() {
                     </svg>
                   </button>
                 </div>
-                
+
                 <form onSubmit={handleAdminLogin} className="space-y-4">
                   <div>
                     <label className="block text-blue-200 font-medium mb-2 text-sm">
@@ -194,7 +194,7 @@ export default function Login() {
                       required
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-blue-200 font-medium mb-2 text-sm">
                       Password
@@ -208,7 +208,7 @@ export default function Login() {
                       required
                     />
                   </div>
-                  
+
                   <button
                     type="submit"
                     disabled={isLoading}

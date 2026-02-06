@@ -1,50 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import fs from 'fs'
-import path from 'path'
-
-export interface Content {
-  id: string
-  title: string
-  subject: string
-  htmlCode: string
-  cssCode: string
-  jsCode: string
-  createdAt: string
-  updatedAt: string
-  slug: string
-  subjectSlug: string
-}
-
-const dataDir = path.join(process.cwd(), 'data')
-const dataFile = path.join(dataDir, 'contents.json')
-
-// Ensure data directory exists
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true })
-}
-
-// Ensure data file exists
-if (!fs.existsSync(dataFile)) {
-  fs.writeFileSync(dataFile, JSON.stringify([], null, 2))
-}
-
-function readContents(): Content[] {
-  try {
-    const data = fs.readFileSync(dataFile, 'utf-8')
-    return JSON.parse(data)
-  } catch {
-    return []
-  }
-}
-
-function writeContents(contents: Content[]) {
-  fs.writeFileSync(dataFile, JSON.stringify(contents, null, 2))
-}
-
-function authenticateAdmin(req: NextApiRequest): boolean {
-  const token = req.headers.authorization?.replace('Bearer ', '')
-  return token?.startsWith('secret-token-') || false
-}
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import prisma from '@/lib/prisma'
 
 function createSlug(text: string): string {
   return text
@@ -53,46 +10,71 @@ function createSlug(text: string): string {
     .replace(/(^-|-$)/g, '')
 }
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // GET - Public, return all published content
   if (req.method === 'GET') {
-    const contents = readContents()
-    return res.status(200).json(contents)
+    try {
+      const contents = await prisma.content.findMany({
+        where: { isPublished: true },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          subject: true,
+          subjectSlug: true,
+          slug: true,
+          htmlCode: true,
+          cssCode: true,
+          jsCode: true,
+          views: true,
+          isPublished: true,
+          createdAt: true,
+          updatedAt: true,
+        }
+      })
+      return res.status(200).json(contents)
+    } catch (error) {
+      console.error('Error fetching contents:', error)
+      return res.status(500).json({ error: 'Failed to fetch contents' })
+    }
   }
 
+  // POST - Create new content (requires auth)
   if (req.method === 'POST') {
-    if (!authenticateAdmin(req)) {
-      return res.status(401).json({ error: 'Unauthorized' })
+    try {
+      const session = await getServerSession(req, res, authOptions)
+
+      if (!session?.user?.id) {
+        return res.status(401).json({ error: 'Unauthorized - Please login' })
+      }
+
+      const { title, subject, htmlCode, cssCode, jsCode, isPublished } = req.body
+
+      if (!title || !subject) {
+        return res.status(400).json({ error: 'Title and subject are required' })
+      }
+
+      const newContent = await prisma.content.create({
+        data: {
+          title,
+          subject,
+          slug: createSlug(title),
+          subjectSlug: createSlug(subject),
+          htmlCode: htmlCode || '',
+          cssCode: cssCode || '',
+          jsCode: jsCode || '',
+          isPublished: isPublished ?? false,
+          userId: session.user.id,
+        }
+      })
+
+      return res.status(201).json(newContent)
+    } catch (error) {
+      console.error('Error creating content:', error)
+      return res.status(500).json({ error: 'Failed to create content' })
     }
-
-    const { title, subject, htmlCode, cssCode, jsCode } = req.body
-
-    if (!title || !subject) {
-      return res.status(400).json({ error: 'Title and subject are required' })
-    }
-
-    const contents = readContents()
-    const now = new Date().toISOString()
-    
-    const newContent: Content = {
-      id: Date.now().toString(),
-      title,
-      subject,
-      htmlCode: htmlCode || '',
-      cssCode: cssCode || '',
-      jsCode: jsCode || '',
-      createdAt: now,
-      updatedAt: now,
-      slug: createSlug(title),
-      subjectSlug: createSlug(subject),
-    }
-
-    contents.push(newContent)
-    writeContents(contents)
-
-    return res.status(201).json(newContent)
   }
 
-  return res.status(405).json({ error: 'Method not allowed' })
+  res.setHeader('Allow', ['GET', 'POST'])
+  return res.status(405).json({ error: `Method ${req.method} not allowed` })
 }
-
-export { readContents, writeContents, authenticateAdmin, createSlug }

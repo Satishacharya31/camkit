@@ -44,29 +44,11 @@ export default function UploadPage() {
     <title>My Project</title>
 </head>
 <body>
-    <h1>Hello World!</h1>
-    <p>Start building your project here.</p>
+    
 </body>
 </html>`,
-    cssCode: `/* Add your styles here */
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    margin: 0;
-    padding: 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    min-height: 100vh;
-    color: white;
-}
-
-h1 {
-    margin-bottom: 10px;
-}`,
-    jsCode: `// Add your JavaScript here
-console.log('Hello from JavaScript!');
-
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('Document is ready!');
-});`,
+    cssCode: '',
+    jsCode: '',
   });
 
   // Load content if editing
@@ -522,8 +504,8 @@ ${content.htmlCode.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<
                   <div className="flex-1 bg-gray-800 flex items-start justify-center overflow-auto p-4">
                     <div
                       className={`bg-white transition-all duration-300 h-full ${previewDevice === 'mobile' ? 'w-[375px] rounded-lg shadow-xl' :
-                          previewDevice === 'tablet' ? 'w-[768px] rounded-lg shadow-xl' :
-                            'w-full'
+                        previewDevice === 'tablet' ? 'w-[768px] rounded-lg shadow-xl' :
+                          'w-full'
                         }`}
                     >
                       <iframe
