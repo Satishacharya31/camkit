@@ -20,6 +20,7 @@ interface ContentData {
   jsCode: string;
   type: ContentType;
   fileUrl?: string; // For PDF
+  thumbnail?: string;
 }
 
 interface Asset {
@@ -171,6 +172,34 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
 </html>`;
   };
 
+  const generatePdfThumbnail = async (file: File): Promise<string | null> => {
+    try {
+      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()), disableWorker: true }).promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 1 });
+      const targetWidth = 420;
+      const scale = targetWidth / viewport.width;
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+
+      if (!context) return null;
+
+      canvas.width = Math.floor(viewport.width * scale);
+      canvas.height = Math.floor(viewport.height * scale);
+
+      await page.render({
+        canvasContext: context,
+        viewport: page.getViewport({ scale }),
+      }).promise;
+
+      return canvas.toDataURL('image/png');
+    } catch (error) {
+      console.error('Failed to generate PDF thumbnail:', error);
+      return null;
+    }
+  };
+
   const handleSave = async (publish = false) => {
     if (!content.title || !content.subject) {
       alert('Please fill in title and subject');
@@ -246,9 +275,10 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
         if (res.ok) {
           const data = await res.json();
           const uploadedAsset = data.asset;
+          const thumbnail = isMainPdf ? await generatePdfThumbnail(file) : undefined;
 
           if (isMainPdf) {
-            setContent(prev => ({ ...prev, fileUrl: uploadedAsset.url }));
+            setContent(prev => ({ ...prev, type: 'PDF', fileUrl: uploadedAsset.url, thumbnail: thumbnail || prev.thumbnail }));
           } else {
             fetchAssets();
           }
@@ -557,7 +587,7 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
                     <div className="w-full h-full flex flex-col items-center">
                       <iframe src={content.fileUrl} className="w-full h-full rounded-lg border border-[#3c3c3c] bg-white" />
                       <button
-                        onClick={() => setContent(prev => ({ ...prev, fileUrl: '' }))}
+                        onClick={() => setContent(prev => ({ ...prev, fileUrl: '', thumbnail: '' }))}
                         className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm transition-colors"
                       >
                         Replace PDF

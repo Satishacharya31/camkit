@@ -11,6 +11,9 @@ interface ContentCardProps {
     htmlCode?: string;
     cssCode?: string;
     jsCode?: string;
+    fileUrl?: string;
+    fileName?: string;
+    mimeType?: string;
     type?: 'CODE' | 'PDF' | 'DOCUMENT' | 'IMAGE';
     thumbnail?: string;
     createdAt: string;
@@ -33,6 +36,9 @@ export default function ContentCard({
     htmlCode,
     cssCode,
     jsCode,
+    fileUrl,
+    fileName,
+    mimeType,
     type = 'CODE',
     thumbnail,
     createdAt,
@@ -41,6 +47,8 @@ export default function ContentCard({
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
     const colors = subjectColors[subject] || { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/30', gradient: 'from-slate-500/20 to-gray-600/20' };
+    const isPdf = type === 'PDF' || mimeType === 'application/pdf' || fileName?.toLowerCase().endsWith('.pdf') || fileUrl?.toLowerCase().includes('.pdf');
+    const pdfPreviewUrl = fileUrl ? `${fileUrl}#page=1&view=FitH&toolbar=0&navpanes=0&scrollbar=0` : '';
 
     // Construct preview HTML safely
     const previewHtml = `
@@ -96,21 +104,30 @@ export default function ContentCard({
                         </div>
                     )}
 
-                    {type === 'PDF' && (
-                        // PDF Icon / Thumbnail
-                        <div className="w-full h-full flex items-center justify-center relative">
+                    {isPdf && (
+                        <div className="w-full h-full relative bg-white">
+                            <div className="absolute inset-0 z-10 bg-transparent" />
                             {thumbnail ? (
                                 <Image
                                     src={thumbnail}
                                     alt={title}
                                     fill
-                                    className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                                    className="object-cover opacity-85 group-hover:opacity-100 transition-opacity"
                                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                 />
+                            ) : fileUrl ? (
+                                <iframe
+                                    src={pdfPreviewUrl}
+                                    className="w-full h-full border-0 opacity-95 group-hover:opacity-100 transition-opacity bg-white"
+                                    title={`${title} PDF preview`}
+                                    loading="lazy"
+                                />
                             ) : (
-                                <svg className={`w-16 h-16 ${colors.text} opacity-50`} fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
-                                </svg>
+                                <div className="w-full h-full flex items-center justify-center">
+                                    <svg className={`w-16 h-16 ${colors.text} opacity-50`} fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+                                    </svg>
+                                </div>
                             )}
                         </div>
                     )}
