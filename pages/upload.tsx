@@ -175,7 +175,8 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
   const generatePdfThumbnail = async (file: File): Promise<string | null> => {
     try {
       const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()), disableWorker: true }).promise;
+      const loadingTask = (pdfjsLib as any).getDocument({ data: new Uint8Array(await file.arrayBuffer()), disableWorker: true });
+      const pdf = await loadingTask.promise;
       const page = await pdf.getPage(1);
       const viewport = page.getViewport({ scale: 1 });
       const targetWidth = 420;
