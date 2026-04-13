@@ -14,6 +14,10 @@ interface Content {
   htmlCode: string
   cssCode: string | null
   jsCode: string | null
+  fileUrl?: string | null
+  fileName?: string | null
+  mimeType?: string | null
+  type?: string | null
   views: number
   createdAt: string
   userId: string
@@ -152,6 +156,10 @@ export default function ContentPage({ content, assets, canonicalUrl }: Props) {
   const resolvedCss = resolveRelativeAssets(content.cssCode || '', assets);
   const resolvedJs = resolveRelativeAssets(content.jsCode || '', assets);
 
+  // Check if it's a PDF
+  const isPdf = content.type === 'PDF' || content.mimeType === 'application/pdf' || content.fileName?.toLowerCase().endsWith('.pdf') || content.fileUrl?.toLowerCase().includes('.pdf');
+  const pdfViewerUrl = isPdf && content.fileUrl ? `${content.fileUrl}#page=1&toolbar=1&navpanes=0&scrollbar=1&view=FitH` : '';
+
   // Build complete standalone HTML document
   const fullDocument = `<!DOCTYPE html>
 <html>
@@ -213,19 +221,36 @@ ${resolvedJs}
       </div>
 
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, margin: 0, padding: 0 }}>
-        <iframe
-          srcDoc={fullDocument}
-          style={{
-            width: '100%',
-            height: '100%',
-            border: 'none',
-            margin: 0,
-            padding: 0,
-            display: 'block',
-          }}
-          sandbox="allow-scripts allow-same-origin allow-modals allow-forms allow-popups"
-          title={content.title}
-        />
+        {isPdf && content.fileUrl ? (
+          <div className="w-full h-full bg-[#111118]">
+            <object
+              data={pdfViewerUrl}
+              type="application/pdf"
+              className="w-full h-full border-none"
+              aria-label={content.title}
+            >
+              <iframe
+                src={pdfViewerUrl}
+                className="w-full h-full border-none m-0 p-0 block"
+                title={content.title}
+              />
+            </object>
+          </div>
+        ) : (
+          <iframe
+            srcDoc={fullDocument}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              margin: 0,
+              padding: 0,
+              display: 'block',
+            }}
+            sandbox="allow-scripts allow-same-origin allow-modals allow-forms allow-popups"
+            title={content.title}
+          />
+        )}
       </div>
     </>
   )
@@ -255,6 +280,10 @@ export const getServerSideProps: GetServerSideProps = async ({ params }) => {
         htmlCode: true,
         cssCode: true,
         jsCode: true,
+        fileUrl: true,
+        fileName: true,
+        mimeType: true,
+        type: true,
         views: true,
         createdAt: true,
         userId: true, // Needed to fetch user's assets
@@ -286,6 +315,10 @@ export const getServerSideProps: GetServerSideProps = async ({ params }) => {
           htmlCode: content.htmlCode || '',
           cssCode: content.cssCode || '',
           jsCode: content.jsCode || '',
+          fileUrl: content.fileUrl || null,
+          fileName: content.fileName || null,
+          mimeType: content.mimeType || null,
+          type: content.type || null,
           views: content.views + 1,
           createdAt: content.createdAt.toISOString(),
           userId: content.userId,
