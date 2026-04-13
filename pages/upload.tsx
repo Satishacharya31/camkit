@@ -93,6 +93,7 @@ export default function UploadPage() {
               jsCode: data.jsCode || '',
               type: data.type || 'CODE',
               fileUrl: data.fileUrl || '',
+              thumbnail: data.thumbnail || '',
             });
             if (data.isPublished) setDeployed(true);
           }
