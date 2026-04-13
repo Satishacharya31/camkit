@@ -49,7 +49,8 @@ export default function DocumentViewer({ document }: DocumentViewerProps) {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
 
-    const isPDF = document.mimeType === 'application/pdf';
+    const isPDF = document.mimeType === 'application/pdf' || document.fileName.toLowerCase().endsWith('.pdf');
+    const pdfViewerUrl = `${document.fileUrl}#page=1&toolbar=1&navpanes=0&scrollbar=1&view=FitH`;
 
     return (
         <div className="min-h-screen bg-[#0a0a0f] flex flex-col">
@@ -108,11 +109,20 @@ export default function DocumentViewer({ document }: DocumentViewerProps) {
             {/* Document Viewer */}
             <main className="flex-1 flex">
                 {isPDF ? (
-                    <iframe
-                        src={`${document.fileUrl}#toolbar=1&navpanes=0`}
-                        className="w-full h-full min-h-[calc(100vh-80px)]"
-                        title={document.title}
-                    />
+                    <div className="flex-1 bg-[#111118] min-h-[calc(100vh-80px)]">
+                        <object
+                            data={pdfViewerUrl}
+                            type="application/pdf"
+                            className="w-full h-full min-h-[calc(100vh-80px)]"
+                            aria-label={document.title}
+                        >
+                            <iframe
+                                src={pdfViewerUrl}
+                                className="w-full h-full min-h-[calc(100vh-80px)]"
+                                title={document.title}
+                            />
+                        </object>
+                    </div>
                 ) : document.mimeType.startsWith('image/') ? (
                     <div className="flex-1 flex items-center justify-center p-8 bg-gray-900">
                         <img

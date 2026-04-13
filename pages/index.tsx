@@ -14,6 +14,9 @@ interface Content {
   htmlCode?: string;
   cssCode?: string;
   jsCode?: string;
+  fileUrl?: string;
+  fileName?: string;
+  mimeType?: string;
   type?: 'CODE' | 'PDF' | 'DOCUMENT' | 'IMAGE';
   thumbnail?: string;
   createdAt: string;
