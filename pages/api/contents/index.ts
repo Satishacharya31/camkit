@@ -62,8 +62,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           createdAt: true,
           updatedAt: true,
           type: true,
-          fileName: true,
-          mimeType: true,
           thumbnail: true,
           category: {
             select: {
