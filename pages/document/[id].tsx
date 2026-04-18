@@ -51,6 +51,12 @@ export default function DocumentViewer({ document }: DocumentViewerProps) {
 
     const isPDF = document.mimeType === 'application/pdf' || document.fileName.toLowerCase().endsWith('.pdf');
     const pdfViewerUrl = `${document.fileUrl}#page=1&toolbar=1&navpanes=0&scrollbar=1&view=FitH`;
+    const isWord = document.mimeType === 'application/msword' || document.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const isPowerPoint = document.mimeType === 'application/vnd.ms-powerpoint' || document.mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    const isOfficeDocument = isWord || isPowerPoint;
+    const previewUrl = isOfficeDocument
+            ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(document.fileUrl)}`
+            : document.fileUrl;
 
     return (
         <div className="min-h-screen bg-[#0a0a0f] flex flex-col">
@@ -123,6 +129,12 @@ export default function DocumentViewer({ document }: DocumentViewerProps) {
                             />
                         </object>
                     </div>
+                ) : isOfficeDocument ? (
+                    <iframe
+                        src={previewUrl}
+                        className="w-full h-full min-h-[calc(100vh-80px)]"
+                        title={document.title}
+                    />
                 ) : document.mimeType.startsWith('image/') ? (
                     <div className="flex-1 flex items-center justify-center p-8 bg-gray-900">
                         <img

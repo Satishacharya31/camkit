@@ -62,6 +62,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           createdAt: true,
           updatedAt: true,
           type: true,
+          fileName: true,
+          mimeType: true,
           thumbnail: true,
           category: {
             select: {
@@ -105,6 +107,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           jsCode: jsCode || '',
           type: req.body.type || 'CODE',
           fileUrl: req.body.fileUrl || null,
+          fileName: req.body.fileName || null,
+          fileSize: req.body.fileSize || null,
+          mimeType: req.body.mimeType || null,
           thumbnail: req.body.thumbnail || null,
           isPublished: isPublished ?? false,
           userId: session.user.id,

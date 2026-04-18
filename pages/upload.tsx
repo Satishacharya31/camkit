@@ -9,7 +9,7 @@ import { resolveRelativeAssets } from '../lib/assets';
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 
 type FileTab = 'html' | 'css' | 'js';
-type ContentType = 'CODE' | 'PDF';
+type ContentType = 'CODE' | 'PDF' | 'DOCUMENT';
 
 interface ContentData {
   id?: string;
@@ -19,7 +19,10 @@ interface ContentData {
   cssCode: string;
   jsCode: string;
   type: ContentType;
-  fileUrl?: string; // For PDF
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
   thumbnail?: string;
 }
 
@@ -75,6 +78,9 @@ export default function UploadPage() {
     jsCode: '',
     type: 'CODE',
     fileUrl: '',
+    fileName: '',
+    fileSize: 0,
+    mimeType: '',
   });
 
   // Load content if editing
@@ -93,6 +99,9 @@ export default function UploadPage() {
               jsCode: data.jsCode || '',
               type: data.type || 'CODE',
               fileUrl: data.fileUrl || '',
+              fileName: data.fileName || '',
+              fileSize: data.fileSize || 0,
+              mimeType: data.mimeType || '',
               thumbnail: data.thumbnail || '',
             });
             if (data.isPublished) setDeployed(true);
@@ -243,10 +252,58 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
     setDeploying(false);
   };
 
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  };
+
+  const supportedDocumentMimeTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  ];
+
+  const supportedDocumentExtensions = ['pdf', 'doc', 'docx', 'ppt', 'pptx'];
+
+  const isSupportedDocument = (file: File) => {
+    const extension = file.name.split('.').pop()?.toLowerCase() || '';
+    return supportedDocumentExtensions.includes(extension) || supportedDocumentMimeTypes.includes(file.type);
+  };
+
+  const getDocumentPreviewUrl = () => {
+    if (!content.fileUrl) return '';
+    if (content.mimeType === 'application/pdf') {
+      return `${content.fileUrl}#toolbar=1&navpanes=0`;
+    }
+
+    // Office Online can preview public doc/docx/ppt/pptx files in an iframe.
+    if (
+      content.mimeType === 'application/msword' ||
+      content.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      content.mimeType === 'application/vnd.ms-powerpoint' ||
+      content.mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    ) {
+      return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(content.fileUrl)}`;
+    }
+
+    return content.fileUrl;
+  };
+
   // Asset Upload (Unified)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isMainPdf = false) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (isMainPdf && !isSupportedDocument(file)) {
+      alert('Unsupported file type. Please upload PDF, DOC, DOCX, PPT, or PPTX.');
+      e.target.value = '';
+      return;
+    }
 
     const maxSizeBytes = isMainPdf ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
     const maxSizeLabel = isMainPdf ? '50MB' : '10MB';
@@ -280,7 +337,16 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
           const thumbnail = isMainPdf ? await generatePdfThumbnail(file) : undefined;
 
           if (isMainPdf) {
-            setContent(prev => ({ ...prev, type: 'PDF', fileUrl: uploadedAsset.url, thumbnail: thumbnail || prev.thumbnail }));
+            const uploadedType = uploadedAsset.mimeType || file.type;
+            setContent(prev => ({
+              ...prev,
+              type: uploadedType === 'application/pdf' ? 'PDF' : 'DOCUMENT',
+              fileUrl: uploadedAsset.url,
+              fileName: uploadedAsset.name || file.name,
+              fileSize: uploadedAsset.size || file.size,
+              mimeType: uploadedType,
+              thumbnail: uploadedType === 'application/pdf' ? (thumbnail || prev.thumbnail) : prev.thumbnail,
+            }));
           } else {
             fetchAssets();
           }
@@ -400,9 +466,9 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
                 </button>
                 <button
                   onClick={() => setContent(prev => ({ ...prev, type: 'PDF' }))}
-                  className={`flex-1 py-1 text-xs rounded border ${content.type === 'PDF' ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-[#3c3c3c] border-[#4c4c4c] text-gray-400'}`}
+                  className={`flex-1 py-1 text-xs rounded border ${(content.type === 'PDF' || content.type === 'DOCUMENT') ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-[#3c3c3c] border-[#4c4c4c] text-gray-400'}`}
                 >
-                  PDF
+                  Docs
                 </button>
               </div>
               <div>
@@ -443,19 +509,24 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
                 </div>
               )}
 
-              {/* PDF File Indicator */}
-              {content.type === 'PDF' && (
+              {/* Document File Indicator */}
+              {(content.type === 'PDF' || content.type === 'DOCUMENT') && (
                 <div className="px-3 py-2">
                   <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
                     <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                     <span className="font-medium">Main Document</span>
                   </div>
                   {content.fileUrl ? (
-                    <div className="truncate text-xs text-blue-400 hover:underline cursor-pointer" title={content.fileUrl} onClick={() => window.open(content.fileUrl, '_blank')}>
-                      {content.fileUrl.split('/').pop()}
-                    </div>
+                    <>
+                      <div className="truncate text-xs text-blue-400 hover:underline cursor-pointer" title={content.fileUrl} onClick={() => window.open(content.fileUrl, '_blank')}>
+                        {content.fileName || content.fileUrl.split('/').pop()}
+                      </div>
+                      <div className="text-[11px] text-gray-500 mt-1">
+                        {content.mimeType || 'Unknown type'} • {formatFileSize(content.fileSize)}
+                      </div>
+                    </>
                   ) : (
-                    <div className="text-xs text-gray-500 italic">No PDF uploaded</div>
+                    <div className="text-xs text-gray-500 italic">No document uploaded</div>
                   )}
                 </div>
               )}
@@ -524,7 +595,7 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
                 ) : (
                   <div className="h-full flex items-center gap-2 px-4 text-xs border-r border-[#3c3c3c] bg-[#1e1e1e] text-white border-t-2 border-t-red-500">
                     <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                    <span>PDF Preview</span>
+                    <span>Document Preview</span>
                   </div>
                 )}
               </div>
@@ -583,16 +654,16 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
                   )}
                 </>
               ) : (
-                // PDF PREVIEW / UPLOAD
+                // DOCUMENT PREVIEW / UPLOAD
                 <div className="w-full h-full flex flex-col items-center justify-center p-8">
                   {content.fileUrl ? (
                     <div className="w-full h-full flex flex-col items-center">
-                      <iframe src={content.fileUrl} className="w-full h-full rounded-lg border border-[#3c3c3c] bg-white" />
+                      <iframe src={getDocumentPreviewUrl()} className="w-full h-full rounded-lg border border-[#3c3c3c] bg-white" title={content.title || 'Document preview'} />
                       <button
-                        onClick={() => setContent(prev => ({ ...prev, fileUrl: '', thumbnail: '' }))}
+                        onClick={() => setContent(prev => ({ ...prev, fileUrl: '', fileName: '', fileSize: 0, mimeType: '', thumbnail: '', type: 'PDF' }))}
                         className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm transition-colors"
                       >
-                        Replace PDF
+                        Replace Document
                       </button>
                     </div>
                   ) : (
@@ -602,12 +673,12 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
                       </div>
-                      <h3 className="text-lg font-medium text-white mb-2">Upload PDF Document</h3>
-                      <p className="text-sm text-gray-500 mb-6">Drag and drop your PDF here, or click to browse (max 50MB)</p>
+                      <h3 className="text-lg font-medium text-white mb-2">Upload Document</h3>
+                      <p className="text-sm text-gray-500 mb-6">Upload PDF, DOC, DOCX, PPT, or PPTX (max 50MB)</p>
                       <input
                         ref={pdfInputRef}
                         type="file"
-                        accept="application/pdf"
+                        accept=".pdf,.doc,.docx,.ppt,.pptx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
                         onChange={(e) => handleFileUpload(e, true)}
                         className="hidden"
                       />

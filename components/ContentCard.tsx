@@ -74,9 +74,11 @@ export default function ContentCard({
     </html>
   `;
 
+    const contentHref = type === 'CODE' ? `/${subjectSlug}/${slug}` : `/document/${id}`;
+
     return (
         <Link
-            href={`/${subjectSlug}/${slug}`}
+            href={contentHref}
             className="group relative block h-[280px]"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}

@@ -294,6 +294,15 @@ export const getServerSideProps: GetServerSideProps = async ({ params }) => {
       return { props: { content: null, assets: [], canonicalUrl } }
     }
 
+    if (content.type !== 'CODE') {
+      return {
+        redirect: {
+          destination: `/document/${content.id}`,
+          permanent: false,
+        },
+      }
+    }
+
     // Fetch user's assets
     const assets = await prisma.asset.findMany({
       where: { userId: content.userId },
@@ -315,6 +324,10 @@ export const getServerSideProps: GetServerSideProps = async ({ params }) => {
           htmlCode: content.htmlCode || '',
           cssCode: content.cssCode || '',
           jsCode: content.jsCode || '',
+          fileUrl: content.fileUrl || null,
+          fileName: content.fileName || null,
+          mimeType: content.mimeType || null,
+          type: content.type || null,
           fileUrl: content.fileUrl || null,
           fileName: content.fileName || null,
           mimeType: content.mimeType || null,

@@ -102,6 +102,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             jsCode: jsCode ?? content.jsCode,
             type: req.body.type ?? content.type,
             fileUrl: req.body.fileUrl ?? content.fileUrl,
+            fileName: req.body.fileName ?? content.fileName,
+            fileSize: req.body.fileSize ?? content.fileSize,
+            mimeType: req.body.mimeType ?? content.mimeType,
             thumbnail: req.body.thumbnail ?? content.thumbnail,
             isPublished: isPublished ?? content.isPublished,
           }
