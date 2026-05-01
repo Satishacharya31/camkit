@@ -51,10 +51,10 @@ export default function ContentCard({
     const lowerUrl = (fileUrl || '').toLowerCase();
 
     // STRICT BOOLEANS for all conditional logic to avoid React array/empty-string rendering issues
-    const isPdf = Boolean(type === 'PDF' || mimeType === 'application/pdf' || lowerName.endsWith('.pdf') || lowerUrl.includes('.pdf'));
     const isWord = Boolean(mimeType === 'application/msword' || mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || lowerName.endsWith('.doc') || lowerName.endsWith('.docx') || lowerUrl.includes('.doc') || lowerUrl.includes('.docx'));
     const isPowerPoint = Boolean(mimeType === 'application/vnd.ms-powerpoint' || mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || lowerName.endsWith('.ppt') || lowerName.endsWith('.pptx') || lowerUrl.includes('.ppt') || lowerUrl.includes('.pptx'));
-    const isImage = Boolean(type === 'IMAGE' || (mimeType || '').startsWith('image/') || lowerName.match(/\.(png|jpe?g|gif|webp)$/) || lowerUrl.match(/\.(png|jpe?g|gif|webp)(\?.*)?$/));
+    const isPdf = Boolean(type === 'PDF' || mimeType === 'application/pdf' || lowerName.endsWith('.pdf') || lowerUrl.includes('.pdf')) && !isWord && !isPowerPoint;
+    const isImage = Boolean(type === 'IMAGE' || (mimeType || '').startsWith('image/') || lowerName.match(/\.(png|jpe?g|gif|webp)$/) || lowerUrl.match(/\.(png|jpe?g|gif|webp)(\?.*)?$/)) && !isPdf && !isWord && !isPowerPoint;
     const isHtml = Boolean(type !== 'CODE' && ((mimeType || '').startsWith('text/html') || lowerName.endsWith('.html') || lowerUrl.endsWith('.html')));
     const isGenericDocument = Boolean(type === 'DOCUMENT' && !isPdf && !isWord && !isPowerPoint && !isImage && !isHtml);
 
@@ -87,15 +87,10 @@ export default function ContentCard({
 
     const contentHref = type === 'CODE' ? `/${subjectSlug}/${slug}` : `/document/${id}`;
 
-    function setIsHovered(arg0: boolean): void {
-        throw new Error('Function not implemented.');
-    }
-
     return (
         <Link
             href={contentHref}
             className="group relative block h-[280px]"
-            onMouseEnter={() => setIsHovered(true)}
         >
             {/* Card Container */}
             <div className="absolute inset-0 bg-white dark:bg-[#12121a]/80 backdrop-blur-md border border-gray-200 dark:border-white/5 rounded-2xl overflow-hidden transition-all duration-300 group-hover:border-blue-500/30 dark:group-hover:border-white/20 group-hover:transform group-hover:-translate-y-1 group-hover:shadow-2xl dark:shadow-none shadow-blue-500/10">
