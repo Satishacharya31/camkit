@@ -287,12 +287,12 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
     const isPdf = (mimeType === 'application/pdf' || lowerName.endsWith('.pdf') || lowerUrl.includes('.pdf')) && !isWord && !isPowerPoint;
 
     if (isPdf) {
-      return `${content.fileUrl}#toolbar=1&navpanes=0`;
+      return `${content.fileUrl}#page=1&zoom=100&navpanes=0`;
     }
 
-    // Office Online can preview public doc/docx/ppt/pptx files in an iframe.
+    // Google Docs Viewer supports better PPT quality with text selection & presentation features
     if (isWord || isPowerPoint) {
-      return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(content.fileUrl)}`;
+      return `https://docs.google.com/gview?url=${encodeURIComponent(content.fileUrl)}&embedded=true`;
     }
 
     return content.fileUrl;
