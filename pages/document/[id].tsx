@@ -139,12 +139,12 @@ export default function DocumentViewer({ document }: DocumentViewerProps) {
     };
 
     const isPDF = document.mimeType === 'application/pdf' || document.fileName.toLowerCase().endsWith('.pdf') || document.fileUrl.toLowerCase().includes('.pdf');
-    const pdfViewerUrl = `${document.fileUrl}#page=1&zoom=100&navpanes=0`;
+    const pdfViewerUrl = `${document.fileUrl}#page=1&zoom=150&navpanes=0&toolbar=0`;
     const isWord = document.mimeType === 'application/msword' || document.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || document.fileName.toLowerCase().endsWith('.doc') || document.fileName.toLowerCase().endsWith('.docx') || document.fileUrl.toLowerCase().includes('.doc') || document.fileUrl.toLowerCase().includes('.docx');
     const isPowerPoint = document.mimeType === 'application/vnd.ms-powerpoint' || document.mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || document.fileName.toLowerCase().endsWith('.ppt') || document.fileName.toLowerCase().endsWith('.pptx') || document.fileUrl.toLowerCase().includes('.ppt') || document.fileUrl.toLowerCase().includes('.pptx');
     const isOfficeDocument = isWord || isPowerPoint;
     
-    // Using Google Docs Viewer for better PPT/Word quality (supports text selection & native zoom)
+    // Use Google Docs Viewer for all office documents (Word, PowerPoint) to preserve image quality
     const previewUrl = isOfficeDocument
             ? `https://docs.google.com/gview?url=${encodeURIComponent(document.fileUrl)}&embedded=true`
             : document.fileUrl;

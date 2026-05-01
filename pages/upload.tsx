@@ -287,11 +287,11 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
     const isPdf = (mimeType === 'application/pdf' || lowerName.endsWith('.pdf') || lowerUrl.includes('.pdf')) && !isWord && !isPowerPoint;
 
     if (isPdf) {
-      return `${content.fileUrl}#page=1&zoom=100&navpanes=0`;
+      return `${content.fileUrl}#page=1&view=Fit&navpanes=0&toolbar=0`;
     }
 
-    // Google Docs Viewer supports better PPT quality with text selection & presentation features
-    if (isWord || isPowerPoint) {
+    // Use Google Docs viewer to preserve quality
+    if (isPowerPoint || isWord) {
       return `https://docs.google.com/gview?url=${encodeURIComponent(content.fileUrl)}&embedded=true`;
     }
 
