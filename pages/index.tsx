@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import Head from 'next/head'
 import { useSession } from 'next-auth/react'
@@ -29,6 +29,12 @@ export default function Home() {
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(['All'])
   const [searchQuery, setSearchQuery] = useState('')
   const [categories, setCategories] = useState<{ id: string; name: string; slug: string; color: string }[]>([])
+  const [allSubjects, setAllSubjects] = useState<string[]>([])
+  
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeftPos, setScrollLeftPos] = useState(0);
 
   useEffect(() => {
     fetchCategories()
@@ -104,14 +110,20 @@ export default function Home() {
     }
   }
 
+  useEffect(() => {
+    setAllSubjects(prev => {
+      const newSet = new Set([
+        ...prev,
+        ...categories.map(c => c.name),
+        ...contents.map(c => c.subject).filter(Boolean)
+      ]);
+      return Array.from(newSet);
+    });
+  }, [categories, contents]);
+
   const subjects: string[] = [
     'All',
-    ...Array.from(
-      new Set([
-        ...categories.map((category) => category.name),
-        ...contents.map((content) => content.subject).filter(Boolean),
-      ])
-    ),
+    ...allSubjects
   ]
 
   useEffect(() => {
@@ -139,6 +151,29 @@ export default function Home() {
       });
     }
   }
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeftPos(scrollRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 2;
+    scrollRef.current.scrollLeft = scrollLeftPos - walk;
+  };
 
   return (
     <>
@@ -203,7 +238,14 @@ export default function Home() {
           </div>
 
           {/* Filters */}
-          <div className="flex flex-nowrap gap-3 mb-8 overflow-x-auto pb-2 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div 
+            ref={scrollRef}
+            onMouseDown={handleMouseDown}
+            onMouseLeave={handleMouseLeave}
+            onMouseUp={handleMouseUp}
+            onMouseMove={handleMouseMove}
+            className={`flex flex-nowrap gap-3 mb-8 overflow-x-auto pb-2 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          >
             {subjects.map((subject) => (
               <button
                 key={subject}
