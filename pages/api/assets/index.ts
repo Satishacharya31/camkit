@@ -56,29 +56,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
     }
 
-    // POST - Upload new asset
+    // POST - Upload new asset metadata or file
     if (req.method === 'POST') {
         try {
-            const { file, fileName, folder = 'general' } = req.body;
+            const { file, fileName, url, size, mimeType, width, height, folder = 'general' } = req.body;
 
-            if (!file || !fileName) {
-                return res.status(400).json({ error: 'File and fileName are required' });
+            if (!fileName) {
+                return res.status(400).json({ error: 'fileName is required' });
             }
-
-            const bufferSize = Buffer.from(file.replace(/^data:[^;]+;base64,/, ''), 'base64').length;
-            const maxAllowedSize = folder === 'content-pdfs' ? MAX_DOCUMENT_SIZE_BYTES : MAX_ASSET_SIZE_BYTES;
-
-            if (bufferSize > maxAllowedSize) {
-                const maxLabel = folder === 'content-pdfs' ? '50MB' : '10MB';
-                return res.status(413).json({ error: `File too large. Maximum size is ${maxLabel}.` });
-            }
-
-            // Upload to Azure Blob Storage
-            const mimeType = getMimeType(fileName);
-            const result = await uploadBase64(file, fileName, {
-                folder: `assets/${session.user.id}/${folder}`,
-                contentType: mimeType,
-            });
 
             // Create slug from filename
             const slug = fileName
@@ -86,20 +71,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 .replace(/[^a-z0-9.]+/g, '-')
                 .replace(/(^-|-$)/g, '');
 
-            // Get image dimensions if it's an image (would need image processing library)
-            let width: number | undefined;
-            let height: number | undefined;
+            let assetUrl = url;
+            let assetMimeType = mimeType || getMimeType(fileName);
+            let bufferSize = size || 0;
 
-            // For now, we'll extract dimensions on the client side
-            // In production, you'd use a library like sharp to get dimensions
+            // Optional base64 fallback (useful for small uploads via old method)
+            if (!url && file) {
+                bufferSize = Buffer.from(file.replace(/^data:[^;]+;base64,/, ''), 'base64').length;
+                const maxAllowedSize = folder === 'content-pdfs' ? MAX_DOCUMENT_SIZE_BYTES : MAX_ASSET_SIZE_BYTES;
+
+                if (bufferSize > maxAllowedSize) {
+                    const maxLabel = folder === 'content-pdfs' ? '50MB' : '10MB';
+                    return res.status(413).json({ error: `File too large. Maximum size is ${maxLabel}.` });
+                }
+
+                // Upload to Azure Blob Storage
+                const result = await uploadBase64(file, fileName, {
+                    folder: `assets/${session.user.id}/${folder}`,
+                    contentType: assetMimeType,
+                });
+                
+                assetUrl = result.url;
+            } else if (!url) {
+                return res.status(400).json({ error: 'file or url is required' });
+            }
 
             // Save to database
             const asset = await prisma.asset.create({
                 data: {
                     name: fileName,
                     slug,
-                    url: result.url,
-                    mimeType,
+                    url: assetUrl,
+                    mimeType: assetMimeType,
                     size: bufferSize,
                     width,
                     height,

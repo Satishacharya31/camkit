@@ -322,49 +322,75 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
     else setUploadingAsset(true);
 
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = reader.result as string;
+      // Step 1: Get the Presigned SAS URL
+      const urlRes = await fetch('/api/assets/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          folder: isMainPdf ? 'content-pdfs' : 'assets',
+        }),
+      });
 
-        const res = await fetch('/api/assets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            file: base64,
-            fileName: file.name,
-            folder: isMainPdf ? 'content-pdfs' : 'assets',
-          }),
-        });
+      if (!urlRes.ok) {
+        throw new Error('Failed to generate upload URL');
+      }
 
-        if (res.ok) {
-          const data = await res.json();
-          const uploadedAsset = data.asset;
-          const thumbnail = isMainPdf ? await generatePdfThumbnail(file) : undefined;
+      const { uploadUrl, url: finalAssetUrl, mimeType } = await urlRes.json();
 
-          if (isMainPdf) {
-            const uploadedType = uploadedAsset.mimeType || file.type;
-            setContent(prev => ({
-              ...prev,
-              type: uploadedType === 'application/pdf' ? 'PDF' : 'DOCUMENT',
-              fileUrl: uploadedAsset.url,
-              fileName: uploadedAsset.name || file.name,
-              fileSize: uploadedAsset.size || file.size,
-              mimeType: uploadedType,
-              thumbnail: uploadedType === 'application/pdf' ? (thumbnail || prev.thumbnail) : prev.thumbnail,
-            }));
-          } else {
-            fetchAssets();
-          }
+      // Step 2: Upload file directly to Azure via PUT
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'x-ms-blob-type': 'BlockBlob',
+          'Content-Type': mimeType || file.type || 'application/octet-stream',
+        },
+        body: file,
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('Failed to upload file directly to Azure');
+      }
+
+      // Step 3: Register the asset metadata in our database
+      const res = await fetch('/api/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: finalAssetUrl,
+          fileName: file.name,
+          size: file.size,
+          mimeType: mimeType || file.type,
+          folder: isMainPdf ? 'content-pdfs' : 'assets',
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const uploadedAsset = data.asset || data; // handle if response wrapper changes
+        const thumbnail = isMainPdf ? await generatePdfThumbnail(file) : undefined;
+
+        if (isMainPdf) {
+          const uploadedType = uploadedAsset.mimeType || file.type;
+          setContent(prev => ({
+            ...prev,
+            type: uploadedType === 'application/pdf' ? 'PDF' : 'DOCUMENT',
+            fileUrl: uploadedAsset.url || finalAssetUrl,
+            fileName: uploadedAsset.name || file.name,
+            fileSize: uploadedAsset.size || file.size,
+            mimeType: uploadedType,
+            thumbnail: uploadedType === 'application/pdf' ? (thumbnail || prev.thumbnail) : prev.thumbnail,
+          }));
         } else {
-          alert('Failed to upload file');
+          fetchAssets();
         }
-
-        if (isMainPdf) setUploadingPdf(false);
-        else setUploadingAsset(false);
-      };
-      reader.readAsDataURL(file);
+      } else {
+        alert('Failed to upload file');
+      }
     } catch (error) {
       console.error('Upload failed:', error);
+      alert('Upload failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
       if (isMainPdf) setUploadingPdf(false);
       else setUploadingAsset(false);
     }

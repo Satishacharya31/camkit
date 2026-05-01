@@ -1,4 +1,4 @@
-import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
+import { BlobServiceClient, ContainerClient, BlobSASPermissions } from '@azure/storage-blob';
 import { v4 as uuidv4 } from 'uuid';
 
 // Azure Blob Storage configuration
@@ -67,6 +67,41 @@ export async function uploadFile(
     });
 
     return {
+        url: blockBlobClient.url,
+        blobName,
+    };
+}
+
+/**
+ * Generate a SAS URL for direct frontend uploads
+ */
+export async function generateUploadUrl(
+    originalName: string,
+    options: UploadOptions = {}
+): Promise<{ uploadUrl: string; url: string; blobName: string }> {
+    await ensureContainer();
+    const client = getContainerClient();
+
+    // Generate blob name
+    const ext = originalName.split('.').pop() || '';
+    const baseName = options.fileName || `${uuidv4()}`;
+    const folder = options.folder || 'uploads';
+    const blobName = `${folder}/${baseName}.${ext}`;
+
+    const blockBlobClient = client.getBlockBlobClient(blobName);
+
+    // Create SAS token that expires in 1 hour
+    const expiresOn = new Date();
+    expiresOn.setHours(expiresOn.getHours() + 1);
+
+    const uploadUrl = await blockBlobClient.generateSasUrl({
+        permissions: BlobSASPermissions.parse("cw"), // create, write
+        expiresOn,
+        contentType: options.contentType || getMimeType(originalName),
+    });
+
+    return {
+        uploadUrl,
         url: blockBlobClient.url,
         blobName,
     };
