@@ -26,7 +26,7 @@ export default function Home() {
   const { data: session } = useSession()
   const [contents, setContents] = useState<Content[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedSubject, setSelectedSubject] = useState<string>('All')
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(['All'])
   const [searchQuery, setSearchQuery] = useState('')
   const [categories, setCategories] = useState<{ id: string; name: string; slug: string; color: string }[]>([])
 
@@ -52,7 +52,7 @@ export default function Home() {
     }, 500)
 
     return () => clearTimeout(delayDebounceFn)
-  }, [searchQuery, selectedSubject])
+  }, [searchQuery, selectedSubjects])
 
   const fetchCategories = async () => {
     try {
@@ -69,12 +69,28 @@ export default function Home() {
     try {
       const params = new URLSearchParams()
       if (searchQuery) params.append('search', searchQuery)
-      if (selectedSubject !== 'All') {
-        const category = categories.find(c => c.name === selectedSubject)
-        if (category) {
-          params.append('category', category.slug)
-        } else {
-          params.append('subject', selectedSubject)
+      
+      const isAllSelected = selectedSubjects.includes('All') && selectedSubjects.length === 1;
+
+      if (!isAllSelected) {
+        const selectedCats: string[] = [];
+        const selectedSubs: string[] = [];
+        
+        selectedSubjects.forEach(subject => {
+          if (subject === 'All') return;
+          const category = categories.find(c => c.name === subject)
+          if (category) {
+            selectedCats.push(category.slug)
+          } else {
+            selectedSubs.push(subject)
+          }
+        })
+        
+        if (selectedCats.length > 0) {
+          params.append('category', selectedCats.join(','))
+        }
+        if (selectedSubs.length > 0) {
+          params.append('subject', selectedSubs.join(','))
         }
       }
 
@@ -99,10 +115,30 @@ export default function Home() {
   ]
 
   useEffect(() => {
-    if (selectedSubject !== 'All' && !subjects.includes(selectedSubject)) {
-      setSelectedSubject('All')
+    setSelectedSubjects(prev => {
+      if (prev.includes('All') && prev.length === 1) return prev;
+      const valid = prev.filter(s => subjects.includes(s) || s === 'All');
+      if (valid.length === 0) return ['All'];
+      if (valid.length !== prev.length) return valid;
+      return prev;
+    });
+  }, [subjects])
+
+  const toggleSubject = (subject: string) => {
+    if (subject === 'All') {
+      setSelectedSubjects(['All']);
+    } else {
+      setSelectedSubjects(prev => {
+        const prevWithoutAll = prev.filter(s => s !== 'All');
+        if (prevWithoutAll.includes(subject)) {
+          const next = prevWithoutAll.filter(s => s !== subject);
+          return next.length === 0 ? ['All'] : next;
+        } else {
+          return [...prevWithoutAll, subject];
+        }
+      });
     }
-  }, [selectedSubject, subjects])
+  }
 
   return (
     <>
@@ -167,12 +203,12 @@ export default function Home() {
           </div>
 
           {/* Filters */}
-          <div className="flex flex-wrap gap-3 mb-8 overflow-x-auto pb-2">
+          <div className="flex flex-nowrap gap-3 mb-8 overflow-x-auto pb-2 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {subjects.map((subject) => (
               <button
                 key={subject}
-                onClick={() => setSelectedSubject(subject)}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-300 border ${selectedSubject === subject
+                onClick={() => toggleSubject(subject)}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-300 border ${selectedSubjects.includes(subject)
                   ? 'bg-blue-600 dark:bg-white text-white dark:text-black border-blue-600 dark:border-white shadow-lg shadow-blue-500/20 dark:shadow-white/10'
                   : 'bg-white dark:bg-white/5 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/10 hover:text-blue-600 dark:hover:text-white hover:border-blue-200 dark:hover:border-white/10'
                   }`}

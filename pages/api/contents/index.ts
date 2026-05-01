@@ -27,14 +27,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ];
       }
 
-      // Subject filter (legacy)
-      if (subject && typeof subject === 'string') {
-        where.subject = subject;
-      }
+      const subjectsArray = subject ? (typeof subject === 'string' ? subject.split(',') : Array.isArray(subject) ? subject : []) : [];
+      const categoriesArray = category ? (typeof category === 'string' ? category.split(',') : Array.isArray(category) ? category : []) : [];
 
-      // Category filter (new)
-      if (category && typeof category === 'string') {
-        where.category = { slug: category };
+      if (subjectsArray.length > 0 || categoriesArray.length > 0) {
+        const orConditions = [];
+        if (subjectsArray.length > 0) {
+          orConditions.push({ subject: { in: subjectsArray } });
+        }
+        if (categoriesArray.length > 0) {
+          orConditions.push({ category: { is: { slug: { in: categoriesArray } } } });
+        }
+        
+        if (where.OR) {
+          where.AND = [
+            { OR: where.OR },
+            { OR: orConditions }
+          ];
+          delete where.OR;
+        } else {
+          where.OR = orConditions;
+        }
       }
 
       // Validate sort field
