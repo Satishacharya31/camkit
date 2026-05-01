@@ -244,7 +244,7 @@ export default function Home() {
               </p>
               {searchQuery && (
                 <button
-                  onClick={() => { setSearchQuery(''); setSelectedSubject('All'); }}
+                  onClick={() => { setSearchQuery(''); setSelectedSubjects(['All']); }}
                   className="text-blue-500 hover:text-blue-600 font-medium"
                 >
                   Clear all filters
