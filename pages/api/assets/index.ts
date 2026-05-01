@@ -1,19 +1,40 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getServerSession } from 'next-auth';
+import fs from 'fs';
+import formidable from 'formidable';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { uploadBase64, deleteByUrl, getMimeType, isImage } from '@/lib/azure-storage';
-
-// Disable default body parser for file uploads
-const MAX_ASSET_SIZE_BYTES = 10 * 1024 * 1024;
-const MAX_DOCUMENT_SIZE_BYTES = 50 * 1024 * 1024;
+import { deleteByUrl, getMimeType, uploadBase64, uploadStream } from '@/lib/azure-storage';
 
 export const config = {
     api: {
-        bodyParser: {
-            sizeLimit: '75mb',
-        },
+        bodyParser: false,
     },
+};
+
+const MAX_ASSET_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_DOCUMENT_SIZE_BYTES = 50 * 1024 * 1024;
+
+const readJsonBody = async (req: NextApiRequest): Promise<any> => {
+    const chunks: Buffer[] = [];
+
+    for await (const chunk of req) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+
+    if (!chunks.length) {
+        return {};
+    }
+
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+};
+
+const firstValue = (value: string | string[] | undefined): string | undefined => {
+    if (Array.isArray(value)) {
+        return value[0];
+    }
+
+    return value;
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -59,7 +80,51 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // POST - Upload new asset metadata or file
     if (req.method === 'POST') {
         try {
-            const { file, fileName, url, size, mimeType, width, height, folder = 'general' } = req.body;
+            const contentType = req.headers['content-type'] || '';
+
+            let fileName: string | undefined;
+            let url: string | undefined;
+            let size: number | undefined;
+            let mimeType: string | undefined;
+            let width: number | undefined;
+            let height: number | undefined;
+            let folder = 'general';
+            let file: string | undefined;
+            let uploadedFilePath: string | undefined;
+
+            if (contentType.includes('multipart/form-data')) {
+                const form = formidable({
+                    maxFileSize: MAX_DOCUMENT_SIZE_BYTES,
+                    multiples: false,
+                    keepExtensions: true,
+                });
+
+                const [fields, files] = await form.parse(req);
+                const uploadFile = Array.isArray(files.file) ? files.file[0] : files.file;
+
+                fileName = firstValue(fields.fileName) || uploadFile?.originalFilename || undefined;
+                folder = firstValue(fields.folder) || folder;
+                mimeType = firstValue(fields.mimeType) || uploadFile?.mimetype || undefined;
+                size = firstValue(fields.size) ? Number(firstValue(fields.size)) : uploadFile?.size;
+                width = firstValue(fields.width) ? Number(firstValue(fields.width)) : undefined;
+                height = firstValue(fields.height) ? Number(firstValue(fields.height)) : undefined;
+
+                if (!uploadFile) {
+                    return res.status(400).json({ error: 'file is required' });
+                }
+
+                const uploaded = await uploadStream(fs.createReadStream(uploadFile.filepath), fileName || uploadFile.originalFilename || 'upload', {
+                    folder: `assets/${session.user.id}/${folder}`,
+                    contentType: mimeType || uploadFile.mimetype || getMimeType(fileName || uploadFile.originalFilename || 'upload'),
+                });
+
+                url = uploaded.url;
+                file = uploaded.blobName;
+                await fs.promises.unlink(uploadFile.filepath).catch(() => {});
+            } else {
+                const body = await readJsonBody(req);
+                ({ file, fileName, url, size, mimeType, width, height, folder = 'general' } = body);
+            }
 
             if (!fileName) {
                 return res.status(400).json({ error: 'fileName is required' });
@@ -72,7 +137,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 .replace(/(^-|-$)/g, '');
 
             let assetUrl = url;
-            let assetMimeType = mimeType || getMimeType(fileName);
+            const assetMimeType = mimeType || getMimeType(fileName);
             let bufferSize = size || 0;
 
             // Optional base64 fallback (useful for small uploads via old method)
@@ -124,7 +189,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // DELETE - Delete asset by ID
     if (req.method === 'DELETE') {
         try {
-            const { id } = req.body;
+            const { id } = await readJsonBody(req);
 
             if (!id) {
                 return res.status(400).json({ error: 'Asset ID is required' });

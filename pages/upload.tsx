@@ -276,15 +276,6 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
     return supportedDocumentExtensions.includes(extension) || supportedDocumentMimeTypes.includes(file.type);
   };
 
-  const fileToDataUrl = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsDataURL(file);
-    });
-  };
-
   const getDocumentPreviewUrl = () => {
     if (!content.fileUrl) return '';
     
@@ -331,20 +322,17 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
     else setUploadingAsset(true);
 
     try {
-      // Step 1: Convert the file to a base64 data URL for backend upload
-      const fileData = await fileToDataUrl(file);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('fileName', file.name);
+      formData.append('folder', isMainPdf ? 'content-pdfs' : 'assets');
+      formData.append('size', String(file.size));
+      formData.append('mimeType', file.type || 'application/octet-stream');
 
-      // Step 2: Upload through the app backend so the browser stays on the same origin
+      // Upload through the app backend so the browser stays on the same origin
       const res = await fetch('/api/assets', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          file: fileData,
-          fileName: file.name,
-          folder: isMainPdf ? 'content-pdfs' : 'assets',
-          size: file.size,
-          mimeType: file.type,
-        }),
+        body: formData,
       });
 
       if (res.ok) {

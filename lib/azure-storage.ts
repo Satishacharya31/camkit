@@ -1,4 +1,5 @@
 import { BlobServiceClient, ContainerClient, BlobSASPermissions } from '@azure/storage-blob';
+import type { Readable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 
 // Azure Blob Storage configuration
@@ -61,6 +62,36 @@ export async function uploadFile(
 
     // Upload with content type
     await blockBlobClient.uploadData(buffer, {
+        blobHTTPHeaders: {
+            blobContentType: options.contentType || getMimeType(originalName),
+        },
+    });
+
+    return {
+        url: blockBlobClient.url,
+        blobName,
+    };
+}
+
+/**
+ * Upload a readable stream to Azure Blob Storage
+ */
+export async function uploadStream(
+    stream: Readable,
+    originalName: string,
+    options: UploadOptions = {}
+): Promise<UploadResult> {
+    await ensureContainer();
+    const client = getContainerClient();
+
+    const ext = originalName.split('.').pop() || '';
+    const baseName = options.fileName || `${uuidv4()}`;
+    const folder = options.folder || 'uploads';
+    const blobName = `${folder}/${baseName}.${ext}`;
+
+    const blockBlobClient = client.getBlockBlobClient(blobName);
+
+    await blockBlobClient.uploadStream(stream, 4 * 1024 * 1024, 5, {
         blobHTTPHeaders: {
             blobContentType: options.contentType || getMimeType(originalName),
         },
