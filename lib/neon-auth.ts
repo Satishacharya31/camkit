@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { Client } from 'pg'
 import { prisma } from './prisma'
 
@@ -22,6 +23,25 @@ export interface NeonUser {
   permissions?: string[]
   createdAt: Date
   updatedAt: Date
+}
+
+interface NeonProject {
+  project?: {
+    id?: string
+    name?: string
+    region_id?: string
+    platform_version?: string
+    provisioner?: string
+    created_at?: string
+  }
+}
+
+interface NeonRole {
+  name: string
+}
+
+interface NeonRolesResponse {
+  roles?: NeonRole[]
 }
 
 // Database Connection for Admin Operations
@@ -116,14 +136,13 @@ export class NeonDatabaseAuth {
       await testClient.connect()
       await testClient.end()
       return true
-    } catch (error) {
+    } catch {
       return false
     }
   }
 
   private generateSecurePassword(): string {
-    const crypto = require('crypto')
-    return crypto.randomBytes(16).toString('hex')
+    return randomBytes(16).toString('hex')
   }
 
   private getDatabaseName(): string {
@@ -137,7 +156,7 @@ export class NeonApiAuth {
   constructor(private config: NeonAuthConfig) {}
 
   // Get project information
-  async getProjectInfo(): Promise<any> {
+  async getProjectInfo(): Promise<NeonProject> {
     if (!this.config.apiKey) {
       throw new Error('Neon API key not configured')
     }
@@ -162,7 +181,7 @@ export class NeonApiAuth {
   }
 
   // List database users
-  async listDatabaseUsers(): Promise<any[]> {
+  async listDatabaseUsers(): Promise<NeonRole[]> {
     if (!this.config.apiKey) return []
 
     try {
@@ -178,7 +197,7 @@ export class NeonApiAuth {
 
       if (!response.ok) return []
 
-      const data = await response.json()
+      const data = (await response.json()) as NeonRolesResponse
       return data.roles || []
     } catch (error) {
       console.error('Error fetching Neon users:', error)
@@ -187,7 +206,7 @@ export class NeonApiAuth {
   }
 
   // Create database role via API
-  async createDatabaseRole(name: string): Promise<any> {
+  async createDatabaseRole(name: string): Promise<unknown> {
     if (!this.config.apiKey) {
       throw new Error('Neon API key not configured')
     }

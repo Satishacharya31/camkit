@@ -120,7 +120,7 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       // Handle Google OAuth sign-in - allow ALL users to sign in
       if (account?.provider === 'google' && user.email) {
         // Check if user is in admin whitelist
@@ -199,11 +199,11 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = token.id;
-        (session.user as any).isAdmin = token.isAdmin;
-        (session.user as any).canManageUsers = token.canManageUsers;
-        (session.user as any).canManageContent = token.canManageContent;
-        (session.user as any).canManageSettings = token.canManageSettings;
+        session.user.id = token.id;
+        session.user.isAdmin = token.isAdmin;
+        session.user.canManageUsers = token.canManageUsers;
+        session.user.canManageContent = token.canManageContent;
+        session.user.canManageSettings = token.canManageSettings;
       }
       return session;
     },
