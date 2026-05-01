@@ -58,7 +58,6 @@ export default function UploadPage() {
   const [isAssetsOpen, setIsAssetsOpen] = useState(true);
   const [uploadingAsset, setUploadingAsset] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
-  const [copiedAssetId, setCopiedAssetId] = useState<string | null>(null);
 
   const [content, setContent] = useState<ContentData>({
     title: '',
@@ -186,6 +185,7 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
     try {
       const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
       const loadingTask = (pdfjsLib as any).getDocument({ data: new Uint8Array(await file.arrayBuffer()), disableWorker: true });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pdf = await loadingTask.promise;
       const page = await pdf.getPage(1);
       const viewport = page.getViewport({ scale: 1 });
@@ -277,18 +277,22 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
 
   const getDocumentPreviewUrl = () => {
     if (!content.fileUrl) return '';
-    if (content.mimeType === 'application/pdf') {
-      return `${content.fileUrl}#toolbar=1&navpanes=0`;
+    
+    const lowerName = (content.fileName || '').toLowerCase();
+    const lowerUrl = (content.fileUrl || '').toLowerCase();
+    const mimeType = content.mimeType || '';
+
+    const isWord = mimeType === 'application/msword' || mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || lowerName.endsWith('.doc') || lowerName.endsWith('.docx') || lowerUrl.includes('.doc') || lowerUrl.includes('.docx');
+    const isPowerPoint = mimeType === 'application/vnd.ms-powerpoint' || mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || lowerName.endsWith('.ppt') || lowerName.endsWith('.pptx') || lowerUrl.includes('.ppt') || lowerUrl.includes('.pptx');
+    const isPdf = (mimeType === 'application/pdf' || lowerName.endsWith('.pdf') || lowerUrl.includes('.pdf')) && !isWord && !isPowerPoint;
+
+    if (isPdf) {
+      return `${content.fileUrl}#page=1&view=Fit&navpanes=0&toolbar=0`;
     }
 
-    // Office Online can preview public doc/docx/ppt/pptx files in an iframe.
-    if (
-      content.mimeType === 'application/msword' ||
-      content.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      content.mimeType === 'application/vnd.ms-powerpoint' ||
-      content.mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-    ) {
-      return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(content.fileUrl)}`;
+    // Use Google Docs viewer to preserve quality
+    if (isPowerPoint || isWord) {
+      return `https://docs.google.com/gview?url=${encodeURIComponent(content.fileUrl)}&embedded=true`;
     }
 
     return content.fileUrl;
