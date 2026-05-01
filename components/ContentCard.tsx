@@ -47,8 +47,20 @@ export default function ContentCard({
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
     const colors = subjectColors[subject] || { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/30', gradient: 'from-slate-500/20 to-gray-600/20' };
-    const isPdf = type === 'PDF' || mimeType === 'application/pdf' || fileName?.toLowerCase().endsWith('.pdf') || fileUrl?.toLowerCase().includes('.pdf');
+
+    const lowerName = (fileName || '').toLowerCase();
+    const lowerUrl = (fileUrl || '').toLowerCase();
+
+    // STRICT BOOLEANS for all conditional logic to avoid React array/empty-string rendering issues
+    const isPdf = Boolean(type === 'PDF' || mimeType === 'application/pdf' || lowerName.endsWith('.pdf') || lowerUrl.includes('.pdf'));
+    const isWord = Boolean(mimeType === 'application/msword' || mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || lowerName.endsWith('.doc') || lowerName.endsWith('.docx'));
+    const isPowerPoint = Boolean(mimeType === 'application/vnd.ms-powerpoint' || mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || lowerName.endsWith('.ppt') || lowerName.endsWith('.pptx'));
+    const isImage = Boolean(type === 'IMAGE' || (mimeType || '').startsWith('image/') || lowerName.match(/\.(png|jpe?g|gif|webp)$/));
+    const isHtml = Boolean(type !== 'CODE' && ((mimeType || '').startsWith('text/html') || lowerName.endsWith('.html') || lowerUrl.endsWith('.html')));
+    const isGenericDocument = Boolean(type === 'DOCUMENT' && !isPdf && !isWord && !isPowerPoint && !isImage && !isHtml);
+
     const pdfPreviewUrl = fileUrl ? `${fileUrl}#page=1&view=FitH&toolbar=0&navpanes=0&scrollbar=0` : '';
+    const officeEmbedUrl = fileUrl ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}` : '';
 
     // Construct preview HTML safely
     const previewHtml = `
@@ -128,6 +140,91 @@ export default function ContentCard({
                                 <div className="w-full h-full flex items-center justify-center">
                                     <svg className={`w-16 h-16 ${colors.text} opacity-50`} fill="currentColor" viewBox="0 0 24 24">
                                         <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+                                    </svg>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Generic documents that don't match specific types (e.g. unknown extensions) fallback */}
+                    {isGenericDocument && (
+                        <div className="w-full h-full flex items-center justify-center relative">
+                            <svg className={`w-16 h-16 ${colors.text} opacity-50`} fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+                            </svg>
+                        </div>
+                    )}
+
+                    {/* Office documents (Word) preview via Office embed */}
+                    {isWord && (
+                        <div className="w-full h-full relative bg-white">
+                            <div className="absolute inset-0 z-10 bg-transparent" />
+                            {fileUrl ? (
+                                <iframe
+                                    src={officeEmbedUrl}
+                                    className="w-full h-full border-0 opacity-95 group-hover:opacity-100 transition-opacity bg-white"
+                                    title={`${title} Document preview`}
+                                    loading="lazy"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                    <svg className={`w-16 h-16 ${colors.text} opacity-50`} fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* PowerPoint: DO NOT load in-home. Show styled preview with title only. */}
+                    {isPowerPoint && (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-yellow-50 to-orange-50 border-b border-gray-100 dark:border-white/5 relative">
+                            <div className="text-center p-4 z-10 w-full">
+                                <div className="w-14 h-14 mx-auto mb-3 rounded-lg bg-orange-500/10 flex items-center justify-center shadow-sm">
+                                    <svg className="w-8 h-8 text-orange-500" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M3 3h18v14H3zM5 5v10h14V5H5zm2 12h10v2H7z" />
+                                    </svg>
+                                </div>
+                                <div className="text-sm font-semibold text-gray-900 truncate px-2">{title}</div>
+                                <div className="text-xs text-orange-600/80 font-medium">PowerPoint</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* HTML files */}
+                    {isHtml && (
+                        <div className="w-full h-full relative bg-white">
+                            <div className="absolute inset-0 z-10 bg-transparent" />
+                            {fileUrl ? (
+                                <iframe
+                                    src={fileUrl}
+                                    className="w-full h-full border-0 opacity-95 group-hover:opacity-100 transition-opacity"
+                                    title={`${title} HTML preview`}
+                                    sandbox="allow-same-origin"
+                                    loading="lazy"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                    <svg className={`w-16 h-16 ${colors.text} opacity-50`} fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M4 4h16v16H4z" />
+                                    </svg>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Images */}
+                    {isImage && (
+                        <div className="w-full h-full relative bg-white">
+                            <div className="absolute inset-0 z-10 bg-transparent" />
+                            {fileUrl ? (
+                                <img src={fileUrl} alt={title} className="w-full h-full object-cover" />
+                            ) : thumbnail ? (
+                                <Image src={thumbnail} alt={title} fill className="object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                    <svg className={`w-16 h-16 ${colors.text} opacity-50`} fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M21 19V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14l4-3 3 3 5-4 5 4z" />
                                     </svg>
                                 </div>
                             )}
