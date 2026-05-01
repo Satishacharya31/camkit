@@ -276,6 +276,15 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
     return supportedDocumentExtensions.includes(extension) || supportedDocumentMimeTypes.includes(file.type);
   };
 
+  const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
   const getDocumentPreviewUrl = () => {
     if (!content.fileUrl) return '';
     
@@ -322,46 +331,19 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
     else setUploadingAsset(true);
 
     try {
-      // Step 1: Get the Presigned SAS URL
-      const urlRes = await fetch('/api/assets/upload-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName: file.name,
-          folder: isMainPdf ? 'content-pdfs' : 'assets',
-        }),
-      });
+      // Step 1: Convert the file to a base64 data URL for backend upload
+      const fileData = await fileToDataUrl(file);
 
-      if (!urlRes.ok) {
-        throw new Error('Failed to generate upload URL');
-      }
-
-      const { uploadUrl, url: finalAssetUrl, mimeType } = await urlRes.json();
-
-      // Step 2: Upload file directly to Azure via PUT
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'x-ms-blob-type': 'BlockBlob',
-          'Content-Type': mimeType || file.type || 'application/octet-stream',
-        },
-        body: file,
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error('Failed to upload file directly to Azure');
-      }
-
-      // Step 3: Register the asset metadata in our database
+      // Step 2: Upload through the app backend so the browser stays on the same origin
       const res = await fetch('/api/assets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          url: finalAssetUrl,
+          file: fileData,
           fileName: file.name,
-          size: file.size,
-          mimeType: mimeType || file.type,
           folder: isMainPdf ? 'content-pdfs' : 'assets',
+          size: file.size,
+          mimeType: file.type,
         }),
       });
 
@@ -375,7 +357,7 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
           setContent(prev => ({
             ...prev,
             type: uploadedType === 'application/pdf' ? 'PDF' : 'DOCUMENT',
-            fileUrl: uploadedAsset.url || finalAssetUrl,
+            fileUrl: uploadedAsset.url,
             fileName: uploadedAsset.name || file.name,
             fileSize: uploadedAsset.size || file.size,
             mimeType: uploadedType,
