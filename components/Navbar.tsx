@@ -28,7 +28,7 @@ export default function Navbar({ searchQuery, setSearchQuery }: NavbarProps) {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const isAdmin = (session?.user as any)?.isAdmin;
+    const isAdmin = (session?.user as { isAdmin?: boolean })?.isAdmin;
 
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 h-16 glass dark:glass border-b border-gray-200 dark:border-white/5 flex items-center justify-between px-6 lg:px-12 bg-white/70 dark:bg-slate-900/50 backdrop-blur-xl transition-colors duration-300">
@@ -103,6 +103,7 @@ export default function Navbar({ searchQuery, setSearchQuery }: NavbarProps) {
                             </div>
                             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm font-bold border border-gray-200 dark:border-white/10 ring-2 ring-transparent hover:ring-purple-500/30 transition-all text-white">
                                 {session.user.image ? (
+                                    /* eslint-disable-next-line @next/next/no-img-element */
                                     <img src={session.user.image} alt="User" className="w-full h-full rounded-full object-cover" />
                                 ) : (
                                     session.user.name?.[0] || 'U'

@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useRef, useEffect } from 'react';
+import { useRef } from 'react';
 
 interface ContentCardProps {
     id: string;
@@ -43,7 +43,6 @@ export default function ContentCard({
     thumbnail,
     createdAt,
 }: ContentCardProps) {
-    const [isHovered, setIsHovered] = useState(false);
     const iframeRef = useRef<HTMLIFrameElement>(null);
 
     const colors = subjectColors[subject] || { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/30', gradient: 'from-slate-500/20 to-gray-600/20' };
@@ -53,9 +52,9 @@ export default function ContentCard({
 
     // STRICT BOOLEANS for all conditional logic to avoid React array/empty-string rendering issues
     const isPdf = Boolean(type === 'PDF' || mimeType === 'application/pdf' || lowerName.endsWith('.pdf') || lowerUrl.includes('.pdf'));
-    const isWord = Boolean(mimeType === 'application/msword' || mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || lowerName.endsWith('.doc') || lowerName.endsWith('.docx'));
-    const isPowerPoint = Boolean(mimeType === 'application/vnd.ms-powerpoint' || mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || lowerName.endsWith('.ppt') || lowerName.endsWith('.pptx'));
-    const isImage = Boolean(type === 'IMAGE' || (mimeType || '').startsWith('image/') || lowerName.match(/\.(png|jpe?g|gif|webp)$/));
+    const isWord = Boolean(mimeType === 'application/msword' || mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || lowerName.endsWith('.doc') || lowerName.endsWith('.docx') || lowerUrl.includes('.doc') || lowerUrl.includes('.docx'));
+    const isPowerPoint = Boolean(mimeType === 'application/vnd.ms-powerpoint' || mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || lowerName.endsWith('.ppt') || lowerName.endsWith('.pptx') || lowerUrl.includes('.ppt') || lowerUrl.includes('.pptx'));
+    const isImage = Boolean(type === 'IMAGE' || (mimeType || '').startsWith('image/') || lowerName.match(/\.(png|jpe?g|gif|webp)$/) || lowerUrl.match(/\.(png|jpe?g|gif|webp)(\?.*)?$/));
     const isHtml = Boolean(type !== 'CODE' && ((mimeType || '').startsWith('text/html') || lowerName.endsWith('.html') || lowerUrl.endsWith('.html')));
     const isGenericDocument = Boolean(type === 'DOCUMENT' && !isPdf && !isWord && !isPowerPoint && !isImage && !isHtml);
 
@@ -88,12 +87,15 @@ export default function ContentCard({
 
     const contentHref = type === 'CODE' ? `/${subjectSlug}/${slug}` : `/document/${id}`;
 
+    function setIsHovered(arg0: boolean): void {
+        throw new Error('Function not implemented.');
+    }
+
     return (
         <Link
             href={contentHref}
             className="group relative block h-[280px]"
             onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
         >
             {/* Card Container */}
             <div className="absolute inset-0 bg-white dark:bg-[#12121a]/80 backdrop-blur-md border border-gray-200 dark:border-white/5 rounded-2xl overflow-hidden transition-all duration-300 group-hover:border-blue-500/30 dark:group-hover:border-white/20 group-hover:transform group-hover:-translate-y-1 group-hover:shadow-2xl dark:shadow-none shadow-blue-500/10">
@@ -221,7 +223,8 @@ export default function ContentCard({
                                 <img src={fileUrl} alt={title} className="w-full h-full object-cover" />
                             ) : thumbnail ? (
                                 <Image src={thumbnail} alt={title} fill className="object-cover" />
-                            ) : (
+                            ) : /* eslint-disable-next-line @next/next/no-img-element */
+                                (
                                 <div className="w-full h-full flex items-center justify-center">
                                     <svg className={`w-16 h-16 ${colors.text} opacity-50`} fill="currentColor" viewBox="0 0 24 24">
                                         <path d="M21 19V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14l4-3 3 3 5-4 5 4z" />

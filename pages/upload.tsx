@@ -58,7 +58,6 @@ export default function UploadPage() {
   const [isAssetsOpen, setIsAssetsOpen] = useState(true);
   const [uploadingAsset, setUploadingAsset] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
-  const [copiedAssetId, setCopiedAssetId] = useState<string | null>(null);
 
   const [content, setContent] = useState<ContentData>({
     title: '',
@@ -186,6 +185,7 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
     try {
       const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
       const loadingTask = (pdfjsLib as any).getDocument({ data: new Uint8Array(await file.arrayBuffer()), disableWorker: true });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pdf = await loadingTask.promise;
       const page = await pdf.getPage(1);
       const viewport = page.getViewport({ scale: 1 });
