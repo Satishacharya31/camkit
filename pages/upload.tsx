@@ -58,6 +58,7 @@ export default function UploadPage() {
   const [isAssetsOpen, setIsAssetsOpen] = useState(true);
   const [uploadingAsset, setUploadingAsset] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [copiedAssetId, setCopiedAssetId] = useState<string | null>(null);
 
   const [content, setContent] = useState<ContentData>({
     title: '',
@@ -287,7 +288,7 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
     const isPdf = (mimeType === 'application/pdf' || lowerName.endsWith('.pdf') || lowerUrl.includes('.pdf')) && !isWord && !isPowerPoint;
 
     if (isPdf) {
-      return `${content.fileUrl}#page=1&view=Fit&navpanes=0&toolbar=0`;
+      return `${content.fileUrl}#zoom=100&navpanes=1&toolbar=.5`;
     }
 
     // Use Google Docs viewer to preserve quality

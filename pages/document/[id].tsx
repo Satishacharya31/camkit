@@ -23,7 +23,7 @@ interface DocumentViewerProps {
 
 export default function DocumentViewer({ document }: DocumentViewerProps) {
     const router = useRouter();
-    const [backButtonPos, setBackButtonPos] = useState({ x: 16, y: 16 });
+    const [backButtonPos, setBackButtonPos] = useState({ x: 46, y: 16 });
     const [isDragging, setIsDragging] = useState(false);
     const dragStateRef = useRef({
         moved: false,
@@ -139,15 +139,15 @@ export default function DocumentViewer({ document }: DocumentViewerProps) {
     };
 
     const isPDF = document.mimeType === 'application/pdf' || document.fileName.toLowerCase().endsWith('.pdf') || document.fileUrl.toLowerCase().includes('.pdf');
-    const pdfViewerUrl = `${document.fileUrl}#page=1&zoom=150&navpanes=0&toolbar=0`;
+    const pdfViewerUrl = `${document.fileUrl}#zoom=100&navpanes=1&toolbar=.5`;
     const isWord = document.mimeType === 'application/msword' || document.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || document.fileName.toLowerCase().endsWith('.doc') || document.fileName.toLowerCase().endsWith('.docx') || document.fileUrl.toLowerCase().includes('.doc') || document.fileUrl.toLowerCase().includes('.docx');
     const isPowerPoint = document.mimeType === 'application/vnd.ms-powerpoint' || document.mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || document.fileName.toLowerCase().endsWith('.ppt') || document.fileName.toLowerCase().endsWith('.pptx') || document.fileUrl.toLowerCase().includes('.ppt') || document.fileUrl.toLowerCase().includes('.pptx');
-    const isOfficeDocument = isWord || isPowerPoint;
     
-    // Use Google Docs Viewer for all office documents (Word, PowerPoint) to preserve image quality
-    const previewUrl = isOfficeDocument
-            ? `https://docs.google.com/gview?url=${encodeURIComponent(document.fileUrl)}&embedded=true`
-            : document.fileUrl;
+    let previewUrl = document.fileUrl;
+    if (isPowerPoint || isWord) {
+        // Use Google Docs viewer for both PowerPoint and Word
+        previewUrl = `https://docs.google.com/gview?url=${encodeURIComponent(document.fileUrl)}&embedded=true`;
+    }
 
     return (
         <div className="min-h-screen bg-[#0a0a0f] flex flex-col">
@@ -201,7 +201,7 @@ export default function DocumentViewer({ document }: DocumentViewerProps) {
                             />
                         </object>
                     </div>
-                ) : isOfficeDocument ? (
+                ) : (isPowerPoint || isWord) ? (
                     <iframe
                         src={previewUrl}
                         className="w-full h-full border-none m-0 p-0 block"

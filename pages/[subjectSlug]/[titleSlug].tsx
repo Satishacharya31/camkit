@@ -158,7 +158,7 @@ export default function ContentPage({ content, assets, canonicalUrl }: Props) {
 
   // Check if it's a PDF
   const isPdf = content.type === 'PDF' || content.mimeType === 'application/pdf' || content.fileName?.toLowerCase().endsWith('.pdf') || content.fileUrl?.toLowerCase().includes('.pdf');
-  const pdfViewerUrl = isPdf && content.fileUrl ? `${content.fileUrl}#page=1&toolbar=1&navpanes=0&scrollbar=1&view=FitH` : '';
+  const pdfViewerUrl = isPdf && content.fileUrl ? `${content.fileUrl}#page=1&toolbar=.5&navpanes=0&scrollbar=1&view=FitH` : '';
 
   // Build complete standalone HTML document
   const fullDocument = `<!DOCTYPE html>
