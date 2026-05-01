@@ -299,22 +299,28 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
     return content.fileUrl;
   };
 
-  // Asset Upload (Unified)
+  // ─── File Upload ──────────────────────────────────────────────────────────
+  // Everything goes through our own server (POST /api/assets, multipart/form-data).
+  // The API uses formidable + bodyParser:false so files stream straight to Azure
+  // without hitting any body-size limit. No SAS, no direct-to-Azure, no CORS.
+  // ─────────────────────────────────────────────────────────────────────────
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isMainPdf = false) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validate file type for document uploads
     if (isMainPdf && !isSupportedDocument(file)) {
       alert('Unsupported file type. Please upload PDF, DOC, DOCX, PPT, or PPTX.');
       e.target.value = '';
       return;
     }
 
-    const maxSizeBytes = isMainPdf ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
-    const maxSizeLabel = isMainPdf ? '50MB' : '10MB';
-
-    if (file.size > maxSizeBytes) {
-      alert(`File too large. Maximum size is ${maxSizeLabel}.`);
+    // Validate size client-side (server also enforces this)
+    const MAX_SIZE = isMainPdf ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    const MAX_LABEL = isMainPdf ? '50 MB' : '10 MB';
+    if (file.size > MAX_SIZE) {
+      alert(`File too large. Maximum allowed size is ${MAX_LABEL}.`);
+      e.target.value = '';
       return;
     }
 
@@ -322,51 +328,59 @@ ${resolvedHtml.replace(/<!DOCTYPE html>|<html[^>]*>|<\/html>|<head>[\s\S]*?<\/he
     else setUploadingAsset(true);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('fileName', file.name);
-      formData.append('folder', isMainPdf ? 'content-pdfs' : 'assets');
-      formData.append('size', String(file.size));
-      formData.append('mimeType', file.type || 'application/octet-stream');
+      const form = new FormData();
+      form.append('file',     file);
+      form.append('fileName', file.name);
+      form.append('folder',   isMainPdf ? 'content-pdfs' : 'assets');
+      form.append('size',     String(file.size));
+      form.append('mimeType', file.type || 'application/octet-stream');
 
-      // Upload through the app backend so the browser stays on the same origin
       const res = await fetch('/api/assets', {
         method: 'POST',
-        body: formData,
+        // Do NOT set Content-Type header — browser sets it automatically
+        // with the correct multipart boundary when body is FormData.
+        body: form,
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        const uploadedAsset = data.asset || data; // handle if response wrapper changes
-        const thumbnail = isMainPdf ? await generatePdfThumbnail(file) : undefined;
+      let data: Record<string, unknown> = {};
+      try { data = await res.json(); } catch { /* ignore */ }
 
-        if (isMainPdf) {
-          const uploadedType = uploadedAsset.mimeType || file.type;
-          setContent(prev => ({
-            ...prev,
-            type: uploadedType === 'application/pdf' ? 'PDF' : 'DOCUMENT',
-            fileUrl: uploadedAsset.url,
-            fileName: uploadedAsset.name || file.name,
-            fileSize: uploadedAsset.size || file.size,
-            mimeType: uploadedType,
-            thumbnail: uploadedType === 'application/pdf' ? (thumbnail || prev.thumbnail) : prev.thumbnail,
-          }));
-        } else {
-          fetchAssets();
-        }
+      if (!res.ok) {
+        throw new Error((data.error as string) || `Upload failed (${res.status})`);
+      }
+
+      const uploadedAsset = (data.asset ?? data) as {
+        url: string; name: string; size: number; mimeType: string;
+      };
+
+      const thumbnail = isMainPdf ? await generatePdfThumbnail(file) : undefined;
+
+      if (isMainPdf) {
+        const uploadedType = uploadedAsset.mimeType || file.type;
+        setContent(prev => ({
+          ...prev,
+          type:      uploadedType === 'application/pdf' ? 'PDF' : 'DOCUMENT',
+          fileUrl:   uploadedAsset.url,
+          fileName:  uploadedAsset.name  || file.name,
+          fileSize:  uploadedAsset.size  || file.size,
+          mimeType:  uploadedType,
+          thumbnail: uploadedType === 'application/pdf'
+            ? (thumbnail || prev.thumbnail)
+            : prev.thumbnail,
+        }));
       } else {
-        alert('Failed to upload file');
+        fetchAssets();
       }
     } catch (error) {
-      console.error('Upload failed:', error);
+      console.error('[upload] Failed:', error);
       alert('Upload failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       if (isMainPdf) setUploadingPdf(false);
       else setUploadingAsset(false);
+      e.target.value = '';
     }
-
-    e.target.value = '';
   };
+
 
   const handleDeleteAsset = async (e: React.MouseEvent, assetId: string) => {
     e.stopPropagation();
